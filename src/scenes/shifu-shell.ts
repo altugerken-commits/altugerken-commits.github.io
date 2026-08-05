@@ -59,7 +59,9 @@ export const params = {
   pointerPush: 0.085, // NDC
 
   // ---- framing -----------------------------------------------------------
-  viewportFill: 0.45, // 40-50% dominance: object width / viewport width
+  // Object width / viewport width. The word spans ~86%, so at rest the S and
+  // the U stay empty — deliberate. The dolly pushes the shell through them.
+  viewportFill: 0.55,
   pitchDeg: 13,
   dollySpan: 4.6,
   dollyDamping: 3.2,
