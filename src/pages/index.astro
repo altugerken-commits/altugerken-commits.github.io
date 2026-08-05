@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import Stage from '../components/Stage.astro';
 import ZigZag from '../components/ZigZag.astro';
 import Contact from '../components/Contact.astro';
+import MaskedTextReveal from '../components/ui/text-reveal-mask.tsx';
 import { projects } from '../data/projects';
 
 // Shifu 26 is the first movement — it opens the site. The hero stages project 01
@@ -44,7 +45,18 @@ const front = new Set([0, 2, 4, 6, 8, 10]);
 
   <!-- ===================== STATEMENT ===================== -->
   <section class="stmt" id="about">
-    <p class="stmt__line serif" data-reveal>I turn constraints into objects.</p>
+    {/* The thesis line. No transition:persist here, deliberately: persistence is
+        for chrome that must outlive a navigation, and page copy that survived a
+        swap would follow the visitor onto the project pages. */}
+    <MaskedTextReveal
+      client:visible={{ rootMargin: '300px' }}
+      as="p"
+      className="stmt__line serif"
+      splitBy="words"
+      duration={1.1}
+      stagger={0.075}
+      text="I turn constraints into objects."
+    />
     <p class="stmt__body serif" data-reveal data-w="0.5">
       Engineering problems arrive as a list of things that cannot happen.
       The work is finding the one shape where all of them stop being true
@@ -114,13 +126,8 @@ const front = new Set([0, 2, 4, 6, 8, 10]);
     margin-inline: auto;
     padding: clamp(7rem, 22vh, 15rem) clamp(1.1rem, 6vw, 7rem);
   }
-  .stmt__line {
-    margin: 0 0 clamp(2.25rem, 7vh, 4rem);
-    font-size: var(--text-d1);
-    line-height: 1.02;
-    letter-spacing: -0.03em;
-    color: var(--ink);
-  }
+  /* .stmt__line now lives in global.css — it is rendered by a React island and
+     Astro's scoping attribute never reaches island DOM. */
   .stmt__body {
     margin: 0;
     max-width: 34rem;

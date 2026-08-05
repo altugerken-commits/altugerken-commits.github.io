@@ -163,6 +163,43 @@
   .bracket:hover::before,
   .bracket:hover::after { border-color: var(--pa); }
 
+  /* The background thread. Lives here rather than in Field.astro because the
+     canvas is rendered by a React island, which scoped component styles cannot
+     reach. Opacity is the --field-a token; the canvas itself is alpha-blended,
+     so the gaps between dots show --ground rather than a second opaque layer. */
+  .field {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: var(--z-field);
+    display: block;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 2600ms var(--ease);
+  }
+  .field[data-ready] { opacity: var(--field-a); }
+
+  /* Display lines rendered by the MaskedTextReveal island. These live here
+     rather than in their page's scoped <style> because Astro's scoping
+     attribute is only stamped on markup Astro itself renders — DOM produced by
+     a React island never receives it, so a scoped rule silently stops matching
+     and the line falls back to body size. */
+  .stmt__line,
+  .ct__line {
+    margin: 0 0 clamp(2.25rem, 7vh, 4rem);
+    font-size: var(--text-d1);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .ct__line { margin-bottom: clamp(1.75rem, 5vh, 3rem); }
+
+  /* The mask clips at the line box, and --text-d1 at line-height 1.02 puts
+     descenders below it. Pad the box and pull it back so "objects" keeps its j. */
+  .stmt__line .split-line,
+  .ct__line .split-line { padding-bottom: 0.14em; margin-bottom: -0.14em; }
+
   /* ---- the 95%: serene display voice ---- */
   .serif { font-family: var(--font-display); font-kerning: normal; }
 
