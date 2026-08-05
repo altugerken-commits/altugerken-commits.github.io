@@ -1,0 +1,165 @@
+---
+// OMNIPRESENT MICRO-INTERACTION.
+//
+// The cursor reads whatever is under it and changes state — including over
+// empty space, where a slow ambient halo keeps it alive. Runs on the shared
+// clock, never its own rAF.
+//
+//   idle    quiet dot + trailing ring
+//   text    ring collapses to a thin reading bar
+//   mag     snaps magnetically to a HUD/control centre
+//   soft    swells and goes translucent over media/tabs
+//   view    fills with the accent and reads "VIEW" over a project tab
+---
+
+<div class="cur" data-cur transition:persist="cursor" aria-hidden="true">
+  <div class="cur__ring" data-cur-ring></div>
+  <div class="cur__dot" data-cur-dot></div>
+  <div class="cur__lbl hud" data-cur-lbl></div>
+</div>
+
+<style>
+  .cur {
+    position: fixed; inset: 0;
+    z-index: var(--z-cursor);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 500ms var(--ease);
+  }
+  .cur[data-on] { opacity: 1; }
+
+  .cur__ring, .cur__dot, .cur__lbl { position: absolute; top: 0; left: 0; will-change: transform; }
+
+  .cur__ring {
+    width: 32px; height: 32px;
+    margin: -16px 0 0 -16px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in oklab, var(--ink) 30%, transparent);
+    transition: width 600ms var(--ease), height 600ms var(--ease),
+                margin 600ms var(--ease), border-radius 600ms var(--ease),
+                border-color 600ms var(--ease), background 600ms var(--ease);
+  }
+  .cur__dot {
+    width: 4px; height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    background: var(--ink);
+    transition: opacity 400ms var(--ease), transform 400ms var(--ease);
+  }
+  .cur__lbl {
+    margin: -0.5em 0 0 -1.4em;
+    color: var(--ground);
+    opacity: 0;
+    transition: opacity 400ms var(--ease);
+  }
+
+  /* over running text: a reading bar */
+  .cur[data-mode="text"] .cur__ring {
+    width: 2px; height: 26px;
+    margin: -13px 0 0 -1px;
+    border-radius: 1px;
+    border-color: transparent;
+    background: color-mix(in oklab, var(--ink) 55%, transparent);
+  }
+  .cur[data-mode="text"] .cur__dot { opacity: 0; }
+
+  /* snapped to a control */
+  .cur[data-mode="mag"] .cur__ring {
+    width: 15px; height: 15px;
+    margin: -7.5px 0 0 -7.5px;
+    border-color: var(--pa);
+  }
+
+  /* over media / soft surfaces */
+  .cur[data-mode="soft"] .cur__ring {
+    width: 72px; height: 72px;
+    margin: -36px 0 0 -36px;
+    border-color: color-mix(in oklab, var(--ink) 16%, transparent);
+  }
+  .cur[data-mode="soft"] .cur__dot { opacity: 0.4; }
+
+  /* over a project tab */
+  .cur[data-mode="view"] .cur__ring {
+    width: 84px; height: 84px;
+    margin: -42px 0 0 -42px;
+    border-color: transparent;
+    background: var(--pa);
+  }
+  .cur[data-mode="view"] .cur__dot { opacity: 0; }
+  .cur[data-mode="view"] .cur__lbl { opacity: 1; }
+
+  @media (hover: none), (pointer: coarse) { .cur { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .cur { display: none; } }
+</style>
+
+<script>
+  import { onFrame, damp } from '../lib/loop';
+
+  const root = document.querySelector<HTMLElement>('[data-cur]');
+  const ring = document.querySelector<HTMLElement>('[data-cur-ring]');
+  const dot = document.querySelector<HTMLElement>('[data-cur-dot]');
+  const lbl = document.querySelector<HTMLElement>('[data-cur-lbl]');
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (root && ring && dot && lbl && fine && !reduced) {
+    // The ClientRouter replaces <html>'s attributes wholesale on every swap, so
+    // data-cursor does not survive a navigation. The element itself persists,
+    // which means without re-asserting this the custom cursor keeps running
+    // while the native one comes back — two cursors instead of none.
+    const claim = () => { document.documentElement.dataset.cursor = 'on'; };
+    claim();
+    document.addEventListener('astro:after-swap', claim);
+
+    let mx = innerWidth / 2, my = innerHeight / 2;
+    let dx = mx, dy = my, rx = mx, ry = my;
+    let sx: number | null = null, sy: number | null = null;
+
+    const TEXT = 'P,H1,H2,H3,H4,LI,BLOCKQUOTE,SPAN,SMALL,EM,STRONG';
+
+    addEventListener('pointermove', (e) => {
+      mx = e.clientX; my = e.clientY;
+      root.setAttribute('data-on', '');
+
+      const el = document.elementFromPoint(mx, my) as HTMLElement | null;
+      if (!el) { root.setAttribute('data-mode', 'idle'); sx = sy = null; return; }
+
+      const tab = el.closest('[data-tab]') as HTMLElement | null;
+      const mag = el.closest('[data-mag]') as HTMLElement | null;
+      const soft = el.closest('[data-soft]') as HTMLElement | null;
+
+      if (tab) {
+        sx = sy = null;
+        root.setAttribute('data-mode', 'view');
+        lbl.textContent = 'View';
+      } else if (mag) {
+        const b = mag.getBoundingClientRect();
+        sx = b.left + b.width / 2; sy = b.top + b.height / 2;
+        root.setAttribute('data-mode', 'mag');
+      } else if (soft) {
+        sx = sy = null;
+        root.setAttribute('data-mode', 'soft');
+      } else if (el.matches(TEXT) && (el.textContent || '').trim().length > 24) {
+        sx = sy = null;
+        root.setAttribute('data-mode', 'text');
+      } else {
+        sx = sy = null;
+        root.setAttribute('data-mode', 'idle');
+      }
+    }, { passive: true });
+
+    addEventListener('pointerleave', () => root.removeAttribute('data-on'), { passive: true });
+    addEventListener('blur', () => root.removeAttribute('data-on'));
+
+    // Two followers at different weights — the lag differential is what gives
+    // the cursor mass. Magnetic targets pull the ring off the raw pointer.
+    onFrame((_t, dt) => {
+      const tx = sx ?? mx, ty = sy ?? my;
+      dx = damp(dx, mx, 26, dt); dy = damp(dy, my, 26, dt);
+      rx = damp(rx, tx, 9, dt);  ry = damp(ry, ty, 9, dt);
+      dot.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+      lbl.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+    });
+  }
+</script>

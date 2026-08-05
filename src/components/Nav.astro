@@ -1,0 +1,223 @@
+---
+import { projects } from '../data/projects';
+---
+
+<!-- Persisted: the nav and the search overlay are identical on every page, and
+     the search script captures its result rows once at module scope. Let the
+     ClientRouter swap them and those captured rows become detached nodes —
+     filtering then quietly stops affecting anything the visitor can see. -->
+<header class="nav" transition:persist="nav">
+  <a href="/" class="nav__mark hud hud--lg" data-mag>Altug Erken</a>
+
+  <nav class="nav__mid" aria-label="Primary">
+    <a href="/#work" class="nav__lnk hud" data-mag>Work</a>
+    <a href="/#about" class="nav__lnk hud" data-mag>About</a>
+    <a href="/#contact" class="nav__lnk hud" data-mag>Contact</a>
+  </nav>
+
+  <div class="nav__end">
+    <button class="nav__btn hud" data-search-open data-mag aria-label="Search projects">
+      Search<i class="sep">/</i><kbd class="nav__kbd">⌘K</kbd>
+    </button>
+    <button class="nav__btn nav__theme hud" data-theme-toggle data-mag aria-label="Toggle colour theme">
+      <span data-theme-label>Dark</span>
+    </button>
+  </div>
+</header>
+
+<!-- ---- search overlay ---- -->
+<div class="srch" data-search transition:persist="search" hidden>
+  <div class="srch__scrim" data-search-close></div>
+  <div class="srch__panel bracket" role="dialog" aria-modal="true" aria-label="Search projects">
+    <input
+      class="srch__in serif"
+      data-search-input
+      type="search"
+      placeholder="Search the work…"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <hr class="rule" />
+    <ul class="srch__list" data-search-list>
+      {projects.map((p) => (
+        <li class="srch__item" data-slug={p.slug} data-hay={`${p.title} ${p.subtitle} ${p.material} ${p.year}`.toLowerCase()}>
+          <a href={`/work/${p.slug}`} class="srch__lnk" data-accent={p.accent}>
+            <span class="srch__t serif">{p.title}</span>
+            <span class="srch__s hud hud--faint">{p.material}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <p class="hud hud--faint srch__empty" data-search-empty hidden>No project matches</p>
+  </div>
+</div>
+
+<style>
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: var(--z-ui);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: clamp(1.1rem, 2.4vh, 1.9rem) clamp(1.1rem, 4vw, 3.5rem);
+    mix-blend-mode: difference;
+  }
+  [data-theme="light"] .nav { mix-blend-mode: normal; }
+
+  .nav__mark { text-decoration: none; color: var(--ink-dim); }
+  .nav__mid { display: flex; gap: clamp(1rem, 2.6vw, 2.4rem); }
+  .nav__end { display: flex; align-items: center; gap: clamp(0.75rem, 2vw, 1.6rem); }
+
+  .nav__lnk, .nav__btn {
+    text-decoration: none;
+    color: var(--ink-faint);
+    background: none;
+    border: 0;
+    padding: 0.35rem 0;
+    transition: color 600ms var(--ease);
+  }
+  .nav__lnk:hover, .nav__btn:hover,
+  .nav__lnk:focus-visible, .nav__btn:focus-visible { color: var(--ink); }
+
+  .nav__kbd {
+    font: inherit;
+    opacity: 0.6;
+    border: 1px solid color-mix(in oklab, var(--hair) 70%, transparent);
+    border-radius: 3px;
+    padding: 0.15em 0.4em;
+  }
+  .nav__theme { min-width: 3.4em; text-align: right; }
+
+  @media (max-width: 720px) {
+    .nav__mid { display: none; }
+    .nav__kbd { display: none; }
+  }
+
+  /* ---- search ---- */
+  .srch { position: fixed; inset: 0; z-index: var(--z-search); }
+  .srch[hidden] { display: none; }
+  .srch__scrim {
+    position: absolute; inset: 0;
+    background: color-mix(in oklab, var(--ground) 82%, transparent);
+    backdrop-filter: blur(14px);
+    opacity: 0;
+    animation: fade 500ms var(--ease) forwards;
+  }
+  @keyframes fade { to { opacity: 1; } }
+
+  .srch__panel {
+    position: relative;
+    width: min(46rem, 92vw);
+    margin: clamp(4rem, 14vh, 9rem) auto 0;
+    padding: clamp(1.25rem, 3vw, 2.25rem);
+    background: color-mix(in oklab, var(--raised) 92%, transparent);
+    border: 1px solid color-mix(in oklab, var(--hair) 60%, transparent);
+    transform: translateY(14px);
+    opacity: 0;
+    animation: rise 700ms var(--ease) 60ms forwards;
+  }
+  @keyframes rise { to { transform: translateY(0); opacity: 1; } }
+
+  .srch__in {
+    width: 100%;
+    background: none;
+    border: 0;
+    outline: none;
+    color: var(--ink);
+    font-size: var(--text-d3);
+    padding: 0 0 1rem;
+  }
+  .srch__in::placeholder { color: var(--ink-faint); }
+
+  .srch__list { list-style: none; margin: 0; padding: 0.5rem 0 0; max-height: 52vh; overflow-y: auto; }
+  .srch__item[hidden] { display: none; }
+  .srch__lnk {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.85rem 0.25rem;
+    text-decoration: none;
+    border-radius: 3px;
+    transition: background 400ms var(--ease);
+  }
+  .srch__lnk:hover, .srch__lnk:focus-visible { background: color-mix(in oklab, var(--lifted) 70%, transparent); }
+  .srch__t { color: var(--ink); font-size: var(--text-d3); }
+  .srch__lnk:hover .srch__t { color: var(--pa); }
+  .srch__empty { padding: 1rem 0.25rem; }
+</style>
+
+<script>
+  // ---- theme -------------------------------------------------------
+  const root = document.documentElement;
+  const label = () => document.querySelector<HTMLElement>('[data-theme-label]');
+
+  const paint = (t: string) => {
+    root.dataset.theme = t;
+    const l = label();
+    if (l) l.textContent = t === 'light' ? 'Light' : 'Dark';
+    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: t } }));
+  };
+
+  document.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest('[data-theme-toggle]');
+    if (!t) return;
+    const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    try { localStorage.setItem('theme', next); } catch {}
+    paint(next);
+  });
+  const stored = () => { try { return localStorage.getItem('theme'); } catch { return null; } };
+  const preferred = () =>
+    stored() || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+  paint(preferred());
+  // Every swap replaces <html>'s attributes, and the pre-paint script in <head>
+  // does not re-run — so without this a visitor's light theme silently reverts
+  // to dark the moment they open a project.
+  document.addEventListener('astro:after-swap', () => paint(preferred()));
+
+  // ---- search ------------------------------------------------------
+  const panel = document.querySelector<HTMLElement>('[data-search]');
+  const input = document.querySelector<HTMLInputElement>('[data-search-input]');
+  const items = [...document.querySelectorAll<HTMLElement>('.srch__item')];
+  const empty = document.querySelector<HTMLElement>('[data-search-empty]');
+
+  const open = () => {
+    if (!panel) return;
+    panel.hidden = false;
+    requestAnimationFrame(() => input?.focus());
+  };
+  const close = () => { if (panel) { panel.hidden = true; if (input) input.value = ''; filter(''); } };
+
+  const filter = (q: string) => {
+    const s = q.trim().toLowerCase();
+    let hits = 0;
+    items.forEach((li) => {
+      const ok = !s || (li.dataset.hay || '').includes(s);
+      li.hidden = !ok;
+      if (ok) hits++;
+    });
+    if (empty) empty.hidden = hits > 0;
+  };
+
+  document.addEventListener('click', (e) => {
+    const el = e.target as HTMLElement;
+    if (el.closest('[data-search-open]')) { e.preventDefault(); open(); }
+    else if (el.closest('[data-search-close]')) close();
+  });
+  input?.addEventListener('input', () => filter(input.value));
+  addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); panel?.hidden ? open() : close(); }
+    if (e.key === 'Escape' && panel && !panel.hidden) close();
+  });
+
+  // search rows retint the stage on hover too
+  document.querySelectorAll<HTMLElement>('.srch__lnk').forEach((a) => {
+    a.addEventListener('pointerenter', () => {
+      const acc = a.dataset.accent;
+      if (acc) document.dispatchEvent(new CustomEvent('projectaccent', { detail: { accent: acc } }));
+    });
+  });
+</script>
