@@ -106,10 +106,20 @@
         return () => tickFns.delete(fn);
       };
 
+      // A scene may take over the draw — the stencil mask renders the world to
+      // a target and composites it through type, so it cannot use the plain
+      // path. Returns a disposer that restores direct rendering.
+      let renderOverride: ((t: number, dt: number) => void) | null = null;
+      const setRenderOverride = (fn: (t: number, dt: number) => void) => {
+        renderOverride = fn;
+        return () => { renderOverride = null; };
+      };
+
       onFrame((t, dt) => {
         resize();
         for (const fn of tickFns) fn(t, dt);
-        renderer.render(scene, camera);
+        if (renderOverride) renderOverride(t, dt);
+        else renderer.render(scene, camera);
       });
 
       // Post-processing seam: chromatic aberration, glitch and bloom belong in
@@ -125,6 +135,7 @@
         view,        // shared scroll progress, written once per frame
         loadGLB,
         onTick,
+        setRenderOverride,
         clockTicks,  // frames driven since load; 0 after a second means a dead clock
         ready: true,
       };
