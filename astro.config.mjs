@@ -20,20 +20,25 @@ export default defineConfig({
 
   fonts: [
     {
-      // Instrument Serif — SIL OFL, verified Turkish coverage, closest open face
-      // to the Meditaterocket reference. Swap to provider: 'local' with the
-      // .woff2 in src/assets/fonts/ once PP Editorial New is licensed.
+      // Space Grotesk — the structural display face. Grotesk skeleton with cut
+      // terminals and a squared bowl: it holds up at the enormous sizes a
+      // typographic mask needs, where a humanist face turns to mush.
+      //
+      // Clash Display was the alternative you named. It is Fontshare, not
+      // Google, so it needs a licence and local .woff2 files rather than a
+      // provider — say the word and I will switch this entry to
+      // provider: 'local' with the files in src/assets/fonts/.
       provider: fontProviders.google(),
-      name: 'Instrument Serif',
+      name: 'Space Grotesk',
       cssVariable: '--font-display',
-      weights: [400],
+      weights: ['300 700'], // variable range, single file
       styles: ['normal'],
       // latin-ext is NON-NEGOTIABLE: g-breve, s-cedilla and dotted-I live in
       // Latin Extended-A, not in `latin`. Without it "Altuğ" renders the ğ in
-      // Times New Roman mid-word.
+      // a fallback face mid-word.
       subsets: ['latin', 'latin-ext'],
       display: 'swap',
-      fallbacks: ['Iowan Old Style', 'Palatino', 'Georgia', 'serif'],
+      fallbacks: ['Arial Narrow', 'Helvetica Neue', 'sans-serif'],
       optimizedFallbacks: true,
     },
     {

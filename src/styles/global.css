@@ -15,6 +15,11 @@
 
 @theme {
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Brutalist / technical stack. Display carries the structural masks; mono
+     carries every piece of metadata, label and data pill. There is no third
+     voice, and deliberately no serif. */
+  --font-display: var(--font-display), "Arial Narrow", "Helvetica Neue", sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -55,6 +60,30 @@
   .layer {
     position: relative;
     z-index: 1;
+  }
+
+  /* Structural display type. Tight tracking and a hard 0.85 leading so stacked
+     lines lock into a block — the mask wants a solid shape to cut through, not
+     an airy paragraph. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 0.85;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+
+  /* Dense HUD metadata: 10px mono, wide tracking, caps. */
+  .hud {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-variant-ligatures: none;
+    font-feature-settings: "zero" 1;
+    margin: 0;
   }
 
   .sr-only {

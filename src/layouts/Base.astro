@@ -37,7 +37,8 @@ const ogImage = new URL('/og.png', canonical);
     <title>{title}</title>
     <meta name="description" content={description} />
 
-    <Font cssVariable="--font-mono" preload />
+    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-mono" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />

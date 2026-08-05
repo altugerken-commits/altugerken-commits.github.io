@@ -3,54 +3,104 @@ import Base from '../layouts/Base.astro';
 ---
 
 <Base>
-  {/* SCAFFOLDING — delete on first real scene.
-      A blank stage over a black ground is indistinguishable from a broken
-      build, so this readout exists purely to prove the engine is alive. It
-      reports what the stage actually initialised, and nothing about it is a
-      design proposal. */}
-  <section class="boot">
-    <p class="boot__line" data-boot-status>stage · initialising</p>
-    <p class="boot__line boot__line--dim" data-boot-detail></p>
+  {/* SCAFFOLDING — this whole layer comes out with the first designed scene.
+      It exists so the object can be looked at and measured before any visual
+      decision is made about it. Nothing here is a proposal. */}
+  <section class="probe">
+    <p class="hud" data-probe-status>stage · initialising</p>
+    <p class="hud probe--dim" data-probe-model></p>
+    <p class="hud probe--dim" data-probe-bounds></p>
   </section>
 </Base>
 
 <style>
-  .boot {
+  .probe {
     position: fixed;
     left: clamp(1rem, 3vw, 2.5rem);
     bottom: clamp(1rem, 3vw, 2.5rem);
     display: grid;
-    gap: 0.35rem;
+    gap: 0.4rem;
     pointer-events: none;
+    color: color-mix(in oklab, var(--fg) 60%, transparent);
   }
-  .boot__line {
-    margin: 0;
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--fg) 55%, transparent);
-  }
-  .boot__line--dim { color: color-mix(in oklab, var(--fg) 30%, transparent); }
+  .probe--dim { color: color-mix(in oklab, var(--fg) 32%, transparent); }
 </style>
 
 <script>
-  const status = document.querySelector<HTMLElement>('[data-boot-status]');
-  const detail = document.querySelector<HTMLElement>('[data-boot-detail]');
+  const MODEL = '/models/shifu-26-bodywork.glb';
 
-  const report = () => {
+  const status = document.querySelector<HTMLElement>('[data-probe-status]');
+  const modelLine = document.querySelector<HTMLElement>('[data-probe-model]');
+  const boundsLine = document.querySelector<HTMLElement>('[data-probe-bounds]');
+
+  const boot = async () => {
     const s = (window as any).__scene;
-    if (!s || !status || !detail) return;
-    const r = s.renderer;
-    const gl = r.getContext();
-    status.textContent = 'stage · ready';
-    detail.textContent = [
-      `webgl${gl instanceof WebGL2RenderingContext ? '2' : '1'}`,
-      `${r.domElement.width}×${r.domElement.height}`,
-      `dpr ${r.getPixelRatio()}`,
-      `${s.scene.children.length} objects`,
-    ].join('  ·  ');
+    if (!s) return;
+    const { THREE, scene, camera } = s;
+
+    if (status) status.textContent = 'stage · loading shell';
+
+    // NEUTRAL INSPECTION LIGHTING — not a look.
+    // RoomEnvironment is an even studio IBL. It exists so the surface reads
+    // while we decide what this object should actually be lit by. Whatever we
+    // choose in the next step replaces this entirely.
+    const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
+    const pmrem = new THREE.PMREMGenerator(s.renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    const { root, meshes, triangles } = await s.loadGLB(MODEL);
+
+    // Measure before touching the transform, so the numbers describe the
+    // asset as authored rather than as I framed it.
+    const rawBox = new THREE.Box3().setFromObject(root);
+    const rawSize = rawBox.getSize(new THREE.Vector3());
+    const rawCentre = rawBox.getCenter(new THREE.Vector3());
+
+    // Centre on the origin and normalise the long axis to 8 units, so the
+    // camera framing is independent of whatever scale it was exported at.
+    const longest = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
+    const k = 8 / longest;
+    root.scale.setScalar(k);
+    root.position.copy(rawCentre).multiplyScalar(-k);
+
+    const group = new THREE.Group();
+    group.add(root);
+    scene.add(group);
+
+    // Straight three-quarter view. The most ordinary camera there is — it
+    // shows length, section and surface at once without editorialising.
+    camera.position.set(6.5, 3.2, 9.5);
+    camera.lookAt(0, 0, 0);
+
+    // Surface a few facts about the asset for the design conversation.
+    const axis = (['x', 'y', 'z'] as const).reduce((a, b) => (rawSize[a] >= rawSize[b] ? a : b));
+    const materials = new Set<string>();
+    root.traverse((c: any) => {
+      if (c.isMesh && c.material) {
+        for (const m of Array.isArray(c.material) ? c.material : [c.material]) {
+          materials.add(`${m.name || 'unnamed'}:${m.type}`);
+        }
+      }
+    });
+
+    (window as any).__shifu = {
+      meshes,
+      triangles,
+      rawSize: rawSize.toArray().map((n: number) => +n.toFixed(3)),
+      longAxis: axis,
+      normalisedScale: +k.toFixed(4),
+      materials: [...materials],
+      group,
+    };
+
+    if (status) status.textContent = 'stage · shell loaded';
+    if (modelLine) modelLine.textContent = `shifu 26 bodywork · ${meshes} meshes · ${triangles.toLocaleString()} tris`;
+    if (boundsLine) {
+      boundsLine.textContent = `bounds ${rawSize.x.toFixed(2)} × ${rawSize.y.toFixed(2)} × ${rawSize.z.toFixed(2)} · long axis ${axis.toUpperCase()} · ${materials.size} materials`;
+    }
+    document.dispatchEvent(new CustomEvent('shifu:loaded'));
   };
 
-  document.addEventListener('stage:ready', report);
-  if ((window as any).__scene?.ready) report();
+  document.addEventListener('stage:ready', boot);
+  if ((window as any).__scene?.ready) boot();
 </script>
