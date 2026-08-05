@@ -3,17 +3,21 @@ import Base from '../layouts/Base.astro';
 ---
 
 <Base>
-  {/* SCAFFOLDING — this whole layer comes out with the first designed scene.
-      It exists so the object can be looked at and measured before any visual
-      decision is made about it. Nothing here is a proposal. */}
+  {/* The dolly reads window scroll through lib/loop's `view.progress`, so the
+      document needs actual height to travel across. Three viewports gives the
+      camera a slow, deliberate pass down the bodywork. */}
+  <div class="scroll-track" aria-hidden="true"></div>
+
+  {/* SCAFFOLDING — comes out with the typographic mask. */}
   <section class="probe">
     <p class="hud" data-probe-status>stage · initialising</p>
     <p class="hud probe--dim" data-probe-model></p>
-    <p class="hud probe--dim" data-probe-bounds></p>
   </section>
 </Base>
 
 <style>
+  .scroll-track { height: 300vh; }
+
   .probe {
     position: fixed;
     left: clamp(1rem, 3vw, 2.5rem);
@@ -27,78 +31,27 @@ import Base from '../layouts/Base.astro';
 </style>
 
 <script>
-  const MODEL = '/models/shifu-26-bodywork.glb';
+  import { initShifuShell } from '../scenes/shifu-shell';
 
+  const MODEL = '/models/shifu-26-bodywork.glb';
   const status = document.querySelector<HTMLElement>('[data-probe-status]');
-  const modelLine = document.querySelector<HTMLElement>('[data-probe-model]');
-  const boundsLine = document.querySelector<HTMLElement>('[data-probe-bounds]');
+  const detail = document.querySelector<HTMLElement>('[data-probe-model]');
 
   const boot = async () => {
-    const s = (window as any).__scene;
-    if (!s) return;
-    const { THREE, scene, camera } = s;
-
+    const api = (window as any).__scene;
+    if (!api || (window as any).__shifuScene) return;
     if (status) status.textContent = 'stage · loading shell';
-
-    // NEUTRAL INSPECTION LIGHTING — not a look.
-    // RoomEnvironment is an even studio IBL. It exists so the surface reads
-    // while we decide what this object should actually be lit by. Whatever we
-    // choose in the next step replaces this entirely.
-    const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
-    const pmrem = new THREE.PMREMGenerator(s.renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    const { root, meshes, triangles } = await s.loadGLB(MODEL);
-
-    // Measure before touching the transform, so the numbers describe the
-    // asset as authored rather than as I framed it.
-    const rawBox = new THREE.Box3().setFromObject(root);
-    const rawSize = rawBox.getSize(new THREE.Vector3());
-    const rawCentre = rawBox.getCenter(new THREE.Vector3());
-
-    // Centre on the origin and normalise the long axis to 8 units, so the
-    // camera framing is independent of whatever scale it was exported at.
-    const longest = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
-    const k = 8 / longest;
-    root.scale.setScalar(k);
-    root.position.copy(rawCentre).multiplyScalar(-k);
-
-    const group = new THREE.Group();
-    group.add(root);
-    scene.add(group);
-
-    // Straight three-quarter view. The most ordinary camera there is — it
-    // shows length, section and surface at once without editorialising.
-    camera.position.set(6.5, 3.2, 9.5);
-    camera.lookAt(0, 0, 0);
-
-    // Surface a few facts about the asset for the design conversation.
-    const axis = (['x', 'y', 'z'] as const).reduce((a, b) => (rawSize[a] >= rawSize[b] ? a : b));
-    const materials = new Set<string>();
-    root.traverse((c: any) => {
-      if (c.isMesh && c.material) {
-        for (const m of Array.isArray(c.material) ? c.material : [c.material]) {
-          materials.add(`${m.name || 'unnamed'}:${m.type}`);
-        }
+    try {
+      const info = await initShifuShell(api, MODEL);
+      if (status) status.textContent = 'shifu 26 · bodywork';
+      if (detail) {
+        detail.textContent = `${info.triangles.toLocaleString()} tris · ${info.pointCount.toLocaleString()} carbon points · steel + enamel solid`;
       }
-    });
-
-    (window as any).__shifu = {
-      meshes,
-      triangles,
-      rawSize: rawSize.toArray().map((n: number) => +n.toFixed(3)),
-      longAxis: axis,
-      normalisedScale: +k.toFixed(4),
-      materials: [...materials],
-      group,
-    };
-
-    if (status) status.textContent = 'stage · shell loaded';
-    if (modelLine) modelLine.textContent = `shifu 26 bodywork · ${meshes} meshes · ${triangles.toLocaleString()} tris`;
-    if (boundsLine) {
-      boundsLine.textContent = `bounds ${rawSize.x.toFixed(2)} × ${rawSize.y.toFixed(2)} × ${rawSize.z.toFixed(2)} · long axis ${axis.toUpperCase()} · ${materials.size} materials`;
+    } catch (err) {
+      if (status) status.textContent = 'stage · load failed';
+      if (detail) detail.textContent = String((err as Error)?.message ?? err);
+      console.error('[shifu]', err);
     }
-    document.dispatchEvent(new CustomEvent('shifu:loaded'));
   };
 
   document.addEventListener('stage:ready', boot);
