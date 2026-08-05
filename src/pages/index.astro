@@ -1,197 +1,56 @@
 ---
 import Base from '../layouts/Base.astro';
-import Stage from '../components/Stage.astro';
-import ZigZag from '../components/ZigZag.astro';
-import Contact from '../components/Contact.astro';
-import MaskedTextReveal from '../components/ui/text-reveal-mask.tsx';
-import { projects } from '../data/projects';
-
-// Shifu 26 is the first movement — it opens the site. The hero stages project 01
-// on idle rather than waiting for a hover, so the landing page is the object.
-const heroModel = projects[0].model ?? '';
-
-const name = 'Altug Erken';
-const chars = name.split('');
-// The weave: the front copy paints only these indices; the back copy paints
-// all of them. A letter in both sits in FRONT of the staged object; a letter
-// only in the back copy is occluded BY it.
-const front = new Set([0, 2, 4, 6, 8, 10]);
 ---
 
 <Base>
-  <!-- ===================== HERO ===================== -->
-  <section class="hero" data-hero-model={heroModel}>
-    <h1 class="weave weave--back serif" aria-label={name}>
-      <span aria-hidden="true">
-        {chars.map((c) => <span class="wc">{c === ' ' ? ' ' : c}</span>)}
-      </span>
-    </h1>
-
-    <Stage />
-
-    <p class="weave weave--front serif" aria-hidden="true">
-      <span>
-        {chars.map((c, i) => (
-          <span class={front.has(i) ? 'wc' : 'wc wc--ghost'}>{c === ' ' ? ' ' : c}</span>
-        ))}
-      </span>
-    </p>
-
-    <div class="hero__foot">
-      <p class="hud">Industrial Design<i class="sep">/</i><span lang="tr">İstanbul</span></p>
-      <p class="hud hud--faint">( Scroll )</p>
-    </div>
+  {/* SCAFFOLDING — delete on first real scene.
+      A blank stage over a black ground is indistinguishable from a broken
+      build, so this readout exists purely to prove the engine is alive. It
+      reports what the stage actually initialised, and nothing about it is a
+      design proposal. */}
+  <section class="boot">
+    <p class="boot__line" data-boot-status>stage · initialising</p>
+    <p class="boot__line boot__line--dim" data-boot-detail></p>
   </section>
-
-  <!-- ===================== STATEMENT ===================== -->
-  <section class="stmt" id="about">
-    {/* The thesis line. No transition:persist here, deliberately: persistence is
-        for chrome that must outlive a navigation, and page copy that survived a
-        swap would follow the visitor onto the project pages. */}
-    <MaskedTextReveal
-      client:visible={{ rootMargin: '300px' }}
-      as="p"
-      className="stmt__line serif"
-      splitBy="words"
-      duration={1.1}
-      stagger={0.075}
-      text="I turn constraints into objects."
-    />
-    <p class="stmt__body serif" data-reveal data-w="0.5">
-      Engineering problems arrive as a list of things that cannot happen.
-      The work is finding the one shape where all of them stop being true
-      at once — and then making it worth touching.
-    </p>
-  </section>
-
-  <ZigZag />
-  <Contact />
 </Base>
 
 <style>
-  /* Explicit z-index on every stacking participant. A section that bleeds
-     must never be able to reach back over the hero's UI. */
-  .hero {
-    position: relative;
-    z-index: var(--z-section);
-    min-height: max(100svh, 720px);
+  .boot {
+    position: fixed;
+    left: clamp(1rem, 3vw, 2.5rem);
+    bottom: clamp(1rem, 3vw, 2.5rem);
     display: grid;
-    place-items: center;
-  }
-
-  .weave {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    margin: 0;
-    width: max-content;
-    max-width: 96vw;
-    font-size: var(--text-hero);
-    line-height: 0.86;
-    letter-spacing: -0.038em;
-    color: var(--ink);
-    text-align: center;
-    white-space: nowrap;
+    gap: 0.35rem;
     pointer-events: none;
-    user-select: none;
   }
-  .weave--back { z-index: var(--z-type-back); }
-  .weave--front { z-index: var(--z-type-front); }
-
-  .wc {
-    display: inline-block;
-    opacity: 0;
-    transform: translateY(0.3em);
-    animation: settle 1800ms var(--ease) forwards;
-  }
-  /* Ghosts hold their layout slot so the copies stay in exact register —
-     they simply never paint. */
-  .wc--ghost { opacity: 0 !important; animation: none !important; }
-  @keyframes settle { to { opacity: 1; transform: translateY(0); } }
-
-  .hero__foot {
-    position: absolute;
-    z-index: var(--z-ui);
-    left: 0; right: 0;
-    bottom: clamp(1.4rem, 4vh, 2.6rem);
-    display: flex;
-    justify-content: space-between;
-    padding: 0 clamp(1.1rem, 4vw, 3.5rem);
-  }
-
-  .stmt {
-    position: relative;
-    z-index: var(--z-section);
-    max-width: 62rem;
-    margin-inline: auto;
-    padding: clamp(7rem, 22vh, 15rem) clamp(1.1rem, 6vw, 7rem);
-  }
-  /* .stmt__line now lives in global.css — it is rendered by a React island and
-     Astro's scoping attribute never reaches island DOM. */
-  .stmt__body {
+  .boot__line {
     margin: 0;
-    max-width: 34rem;
-    font-size: var(--text-d3);
-    line-height: 1.58;
-    color: var(--ink-mute);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--fg) 55%, transparent);
   }
-
-  [data-reveal] { opacity: 0; }
-
-  @media (max-width: 640px) {
-    .weave { white-space: normal; max-width: 6ch; margin-inline: auto; font-size: clamp(4.5rem, 21vw, 7rem); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .wc { animation: none !important; opacity: 1; transform: none; }
-    .wc--ghost { opacity: 0 !important; }
-    [data-reveal] { opacity: 1 !important; transform: none !important; }
-  }
+  .boot__line--dim { color: color-mix(in oklab, var(--fg) 30%, transparent); }
 </style>
 
 <script>
-  import gsap from 'gsap';
-  // Side-effect import: ScrollTrigger self-registers against the shared gsap
-  // instance on load. Binding it to a name here only produced an unused-symbol
-  // warning — the import must stay, the binding must not.
-  import 'gsap/ScrollTrigger';
+  const status = document.querySelector<HTMLElement>('[data-boot-status]');
+  const detail = document.querySelector<HTMLElement>('[data-boot-detail]');
 
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduced) {
-    // Centre-out stagger so the name resolves rather than sweeps.
-    document.querySelectorAll<HTMLElement>('.weave').forEach((w) => {
-      const cs = [...w.querySelectorAll<HTMLElement>('.wc')];
-      const mid = (cs.length - 1) / 2;
-      cs.forEach((c, i) => { c.style.animationDelay = `${420 + Math.abs(i - mid) * 62}ms`; });
-    });
+  const report = () => {
+    const s = (window as any).__scene;
+    if (!s || !status || !detail) return;
+    const r = s.renderer;
+    const gl = r.getContext();
+    status.textContent = 'stage · ready';
+    detail.textContent = [
+      `webgl${gl instanceof WebGL2RenderingContext ? '2' : '1'}`,
+      `${r.domElement.width}×${r.domElement.height}`,
+      `dpr ${r.getPixelRatio()}`,
+      `${s.scene.children.length} objects`,
+    ].join('  ·  ');
+  };
 
-    // The type drifts faster than the page so the staged object appears to
-    // hold its ground while the name slides past it.
-    gsap.to('.weave', {
-      yPercent: -24, ease: 'none',
-      scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1.1 },
-    });
-
-    // One reveal grammar for every section — same easing family, weight varies.
-    document.querySelectorAll<HTMLElement>('[data-reveal]').forEach((el) => {
-      const w = parseFloat(el.dataset.w || '1');
-      gsap.fromTo(el,
-        { opacity: 0, y: 38 * w },
-        { opacity: 1, y: 0, duration: 1.5 + w * 0.5, ease: 'expo.out',
-          scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
-    });
-
-    // Project tabs share that grammar, offset by their side.
-    document.querySelectorAll<HTMLElement>('.zz__row').forEach((row) => {
-      const left = row.classList.contains('zz__row--l');
-      gsap.fromTo(row.querySelector('.zz__tab'),
-        { opacity: 0, y: 46, x: left ? -18 : 18 },
-        { opacity: 1, y: 0, x: 0, duration: 1.9, ease: 'expo.out',
-          scrollTrigger: { trigger: row, start: 'top 86%', once: true } });
-    });
-  }
-
-  // The hero's object is staged by Stage.astro, which reads data-hero-model on
-  // every page load. It used to be fired from here with a retry loop against
-  // module order — but a page script only runs if that page was the entry
-  // point, so returning to the hero from a project left it unstaged.
+  document.addEventListener('stage:ready', report);
+  if ((window as any).__scene?.ready) report();
 </script>

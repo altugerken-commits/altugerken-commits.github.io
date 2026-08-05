@@ -1,39 +1,33 @@
 ---
+// Minimal shell. Head, one font, the clock, the stage. Nothing else.
+//
+// Gone with the gallery: the theme toggle and its pre-paint script (there is no
+// light polarity any more), the full-page mask transition, the nav, the cursor
+// and the JSON-LD/OG block's dependence on the old brand card. SEO basics stay
+// because they are infrastructure, not aesthetic.
+//
+// The display serif is deliberately NOT loaded. Instrument Serif was the voice
+// of the editorial direction that just got purged, and the reference sites run
+// bold sans plus mono. Type is an open decision — say the word and I will wire
+// whichever face you want through astro.config's Fonts API.
 import { Font } from 'astro:assets';
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
-import Field from '../components/Field.astro';
-import Cursor from '../components/Cursor.astro';
-import Nav from '../components/Nav.astro';
+import Scene from '../components/Scene.astro';
 
-interface Props { title?: string; description?: string; accent?: string; image?: string; }
+interface Props { title?: string; description?: string; }
 
 const {
   title = 'Altug Erken — Industrial Designer',
   description =
     'Altug Erken (Altuğ Erken) is an industrial designer who turns complex engineering problems into aesthetic, manufacturable objects.',
-  accent,
-  // Site-wide placeholder card. Pass `image` per project once each object has a
-  // render worth sharing — a real object beats this every time.
-  image = '/og.png',
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://altugerken.com');
-// Absolute — every crawler rejects a relative og:image.
-const ogImage = new URL(image, canonical);
-
-const person = {
-  '@context': 'https://schema.org',
-  '@type': 'Person',
-  name: 'Altug Erken',
-  alternateName: ['Altuğ Erken'],
-  jobTitle: 'Industrial Designer',
-  description,
-  url: canonical.href,
-};
+const ogImage = new URL('/og.png', canonical);
 ---
 
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -43,90 +37,31 @@ const person = {
     <title>{title}</title>
     <meta name="description" content={description} />
 
-    <!-- Preload exactly one file: the display serif, latin subset. Preloads
-         compete for bandwidth; adding the mono would make the hero arrive
-         later, not sooner. -->
-    <Font cssVariable="--font-display" preload={[{ weight: 400, style: 'normal', subset: 'latin' }]} />
-    <Font cssVariable="--font-mono" />
+    <Font cssVariable="--font-mono" preload />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical.href} />
-    <meta property="og:site_name" content="Altug Erken" />
     <meta property="og:image" content={ogImage.href} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Altug Erken — Industrial Design, İstanbul" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage.href} />
-
-    <script is:inline type="application/ld+json" set:html={JSON.stringify(person)} />
-
-    {/* Theme before first paint — no flash of the wrong polarity. */}
-    <script is:inline>
-      (function () {
-        try {
-          var t = localStorage.getItem('theme');
-          if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-          document.documentElement.dataset.theme = t;
-        } catch (e) {}
-      })();
-    </script>
 
     <ClientRouter />
   </head>
 
-  <body data-accent={accent}>
+  <body>
     <a class="sr-only" href="#main">Skip to content</a>
 
-    <Field />
-    <Nav />
+    <Scene />
 
-    <main id="main">
+    <main id="main" class="layer">
       <slot />
     </main>
 
-    <!-- full-page transition mask -->
-    <div class="mask" data-mask aria-hidden="true"><span class="mask__sheet"></span></div>
-
-    <Cursor />
-
-    <style>
-      .mask {
-        position: fixed;
-        inset: 0;
-        z-index: var(--z-mask);
-        pointer-events: none;
-        display: grid;
-      }
-      .mask__sheet {
-        display: block;
-        width: 100%;
-        height: 100%;
-        background: var(--ground);
-        transform: scaleY(0);
-        transform-origin: bottom center;
-      }
-      .mask[data-in] .mask__sheet {
-        animation: maskIn 700ms var(--ease) forwards;
-      }
-      .mask[data-out] .mask__sheet {
-        transform-origin: top center;
-        transform: scaleY(1);
-        animation: maskOut 850ms var(--ease) forwards;
-      }
-      @keyframes maskIn { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-      @keyframes maskOut { from { transform: scaleY(1); } to { transform: scaleY(0); } }
-      @media (prefers-reduced-motion: reduce) {
-        .mask__sheet { animation: none !important; transform: scaleY(0) !important; }
-      }
-    </style>
-
     <script>
       import gsap from 'gsap';
+      import 'gsap/ScrollTrigger';
       import { ScrollTrigger } from 'gsap/ScrollTrigger';
       import Lenis from 'lenis';
       import { runFrame, measureScroll } from '../lib/loop';
@@ -134,7 +69,9 @@ const person = {
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       // ONE clock. Lenis -> gsap.ticker -> ScrollTrigger -> every registered
-      // frame callback (field, stage, cursor). Nothing else may own a rAF.
+      // frame callback. Nothing else may own a rAF. Kept from the previous
+      // build because it is engine, and because spatial scrolling makes a
+      // single authoritative scroll value more important, not less.
       gsap.registerPlugin(ScrollTrigger);
 
       let lenis: any = null;
@@ -150,31 +87,9 @@ const person = {
       });
       gsap.ticker.lagSmoothing(0);
 
-      // ---- full-page mask transition ----
-      const mask = document.querySelector<HTMLElement>('[data-mask]');
-      document.addEventListener('astro:before-preparation', () => {
-        mask?.removeAttribute('data-out');
-        mask?.setAttribute('data-in', '');
-      });
       document.addEventListener('astro:after-swap', () => {
-        const m = document.querySelector<HTMLElement>('[data-mask]');
-        m?.removeAttribute('data-in');
-        m?.setAttribute('data-out', '');
         window.scrollTo(0, 0);
         ScrollTrigger.refresh();
-      });
-
-      // ---- per-page accent ----
-      // A project page carries its own accent, but the page's own script only
-      // executes when that page is the entry point — so applying it there meant
-      // project-to-project navigation kept the previous project's colour on the
-      // light rig and the background thread. astro:page-load covers both the
-      // first paint and every subsequent swap.
-      document.addEventListener('astro:page-load', () => {
-        const raw = document.querySelector<HTMLElement>('.pj')?.dataset.accent;
-        if (!raw) return;
-        document.documentElement.style.setProperty('--pa-raw', raw);
-        document.dispatchEvent(new CustomEvent('projectaccent', { detail: { accent: raw } }));
       });
     </script>
   </body>

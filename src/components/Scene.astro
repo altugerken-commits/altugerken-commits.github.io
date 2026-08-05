@@ -1,0 +1,136 @@
+---
+// THE STAGE — blank.
+//
+// This is the engine, kept deliberately empty. It brings up a WebGL2 renderer,
+// a perspective camera positioned for Z-axis travel, a resize handler and a
+// Draco-ready GLB loader, then stops. There is no lighting rig, no material
+// language, no composition — those are design decisions, and they are yours.
+//
+// Carried over from the previous build because they were hard-won, not because
+// of how anything looked:
+//   - one clock. Everything registers with lib/loop.ts; nothing owns a private
+//     rAF. Five competing loops is how a "continuous flow" turns into parts
+//     that visibly disagree.
+//   - transition:persist. Component <script> modules do not re-execute after a
+//     ClientRouter swap, so without it the initialised context is replaced by a
+//     blank canvas on the first internal navigation.
+//   - the Draco decoder path, which is what the two existing .glb files in
+//     public/models are compressed with.
+//
+// Everything hangs off window.__scene so the next step can attach to it
+// without this file needing to know anything about that scene.
+---
+
+<canvas class="stage-canvas" data-stage transition:persist="stage"></canvas>
+
+<script>
+  import { onFrame, view, ticks as clockTicks } from '../lib/loop';
+
+  const cv = document.querySelector<HTMLCanvasElement>('[data-stage]');
+
+  if (cv) {
+    (async () => {
+      const THREE = await import('three');
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: cv,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      // ACESFilmic + sRGB so emissive/bloom-heavy scenes have somewhere to go
+      // without clipping. Swap freely once the look is decided.
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const scene = new THREE.Scene();
+
+      // 50° vertical FOV and a deep far plane: enough perspective for depth
+      // travel to read, without the fisheye that comes from going much wider.
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+      camera.position.set(0, 0, 12);
+
+      const resize = () => {
+        const w = innerWidth || 1;
+        const h = innerHeight || 1;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      };
+      resize();
+      addEventListener('resize', resize, { passive: true });
+
+      // Pointer in normalised device coords, damped by whoever consumes it.
+      const pointer = new THREE.Vector2(0, 0);
+      addEventListener(
+        'pointermove',
+        (e) => {
+          pointer.x = (e.clientX / innerWidth) * 2 - 1;
+          pointer.y = -((e.clientY / innerHeight) * 2 - 1);
+        },
+        { passive: true },
+      );
+
+      // ---- Draco-ready GLB loader ------------------------------------------
+      let gltfLoader: any = null;
+      const loadGLB = async (url: string) => {
+        if (!gltfLoader) {
+          const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+          const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js');
+          gltfLoader = new GLTFLoader();
+          const draco = new DRACOLoader();
+          draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+          gltfLoader.setDRACOLoader(draco);
+        }
+        const gltf: any = await gltfLoader.loadAsync(url);
+        let meshes = 0;
+        let triangles = 0;
+        gltf.scene.traverse((c: any) => {
+          if (!c.isMesh) return;
+          meshes++;
+          const g = c.geometry;
+          triangles += (g.index ? g.index.count : g.attributes.position.count) / 3;
+        });
+        return { gltf, root: gltf.scene, meshes, triangles: Math.round(triangles) };
+      };
+
+      // ---- the tick --------------------------------------------------------
+      // Subscribers run before the draw, in registration order. Returning the
+      // unsubscribe keeps scene swaps from leaking callbacks.
+      type Tick = (t: number, dt: number) => void;
+      const tickFns = new Set<Tick>();
+      const onTick = (fn: Tick) => {
+        tickFns.add(fn);
+        return () => tickFns.delete(fn);
+      };
+
+      onFrame((t, dt) => {
+        resize();
+        for (const fn of tickFns) fn(t, dt);
+        renderer.render(scene, camera);
+      });
+
+      // Post-processing seam: chromatic aberration, glitch and bloom belong in
+      // an EffectComposer that replaces the renderer.render call above. Left
+      // unbuilt on purpose — it is a look decision, not scaffolding.
+
+      (window as any).__scene = {
+        THREE,
+        scene,
+        camera,
+        renderer,
+        pointer,
+        view,        // shared scroll progress, written once per frame
+        loadGLB,
+        onTick,
+        clockTicks,  // frames driven since load; 0 after a second means a dead clock
+        ready: true,
+      };
+
+      cv.setAttribute('data-ready', '');
+      document.dispatchEvent(new CustomEvent('stage:ready'));
+    })();
+  }
+</script>
