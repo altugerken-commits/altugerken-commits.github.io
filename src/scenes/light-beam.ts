@@ -18,6 +18,7 @@
 // purpose: nothing here is lit, it *is* the light.
 
 import type { Vector2 } from 'three';
+import { STOPS, descent, focusAt } from '../lib/stops';
 
 interface StageApi {
   THREE: typeof import('three');
@@ -25,7 +26,7 @@ interface StageApi {
   camera: any;
   renderer: any;
   pointer: Vector2;
-  view: { progress: number; energy: number; flow: number };
+  view: { progress: number; energy: number; flow: number; scrollY: number; vh: number };
   onTick: (fn: (t: number, dt: number) => void) => () => void;
   setRenderOverride: (fn: (t: number, dt: number) => void) => () => void;
 }
@@ -39,8 +40,6 @@ const CORE_WIDTH = 3.0;
 /** The outer haze that bleeds into the void. */
 const HAZE_WIDTH = 16.0;
 
-/** World units the camera descends across the full scroll. */
-const TRAVEL = 220;
 /** Resting distance from the axis. */
 const CAM_Z = 12;
 
@@ -83,6 +82,8 @@ const BEAM_FRAG = /* glsl */ `
   uniform float uRampDrift;
   uniform float uWhiteMix;
   uniform float uSat;
+  uniform float uSplinter;
+  uniform float uSpread;
   uniform vec3  uColorA;
   uniform vec3  uColorB;
 
@@ -98,16 +99,33 @@ const BEAM_FRAG = /* glsl */ `
     return mix(hash(i), hash(i + 1.0), f);
   }
 
-  void main() {
-    // 0 on the axis, 1 at the plane edge.
-    float d = clamp(abs(vUv.x - 0.5) * 2.0, 0.0, 1.0);
-    float inv = 1.0 - d;
+  // Three nested falloffs for one strand. The razor centre is the high
+  // exponent; the wide low-exponent term is what bloom grabs and smears.
+  float strand(float d) {
+    float inv = 1.0 - clamp(d, 0.0, 1.0);
+    return pow(inv, uCoreExp) * uCoreGain
+         + pow(inv, uMidExp)  * uMidGain
+         + pow(inv, uHaloExp) * uHaloGain;
+  }
 
-    // Three nested falloffs. The razor centre is the high exponent; the wide
-    // low-exponent term is what bloom grabs and smears into the void.
-    float core = pow(inv, uCoreExp) * uCoreGain;
-    float mid  = pow(inv, uMidExp)  * uMidGain;
-    float halo = pow(inv, uHaloExp) * uHaloGain;
+  void main() {
+    // Signed offset from the axis, widened at a stop.
+    float x = (vUv.x - 0.5) / max(0.35, 1.0 + uSpread);
+
+    // Splintering. Two side strands peel away from the axis by a noise that
+    // travels along the beam, so the column frays into filaments instead of
+    // just getting fatter. Computed unconditionally — at uSplinter 0 the
+    // offsets are 0, all three strands coincide, and the result is identical
+    // to the single-strand beam. Branching here would only cost divergence.
+    float o1 = (vnoise(vWorldY * 0.55 + uTime * 0.9) - 0.5) * uSplinter;
+    float o2 = (vnoise(vWorldY * 0.83 - uTime * 1.3 + 17.0) - 0.5) * uSplinter;
+
+    float e = strand(abs(x) * 2.0);
+    e = max(e, strand(abs(x + o1) * 2.0) * 0.72);
+    e = max(e, strand(abs(x - o2) * 2.0) * 0.72);
+
+    // Kept for the colour/white terms below, which key off the razor centre.
+    float core = pow(1.0 - clamp(abs(x) * 2.0, 0.0, 1.0), uCoreExp) * uCoreGain;
 
     // Travelling energy along the beam. Two octaves at different speeds so it
     // reads as charge moving through the column, not as a texture sliding.
@@ -123,9 +141,10 @@ const BEAM_FRAG = /* glsl */ `
     // world units to traverse — but the camera only sees ~11 units of beam at
     // rest, so every visible pixel sat at g≈0.5 and the beam rendered as one
     // flat colour. Measured off-axis: identical RGB at top and bottom of frame.
-    // Periodic instead: a ~60-unit wavelength puts a visible gradient across
-    // the frame AND cycles the beam through several colour zones during the
-    // descent, which is where the "multi-coloured" reading actually comes from.
+    // Periodic instead — see uRampFreq for the swept wavelength. It puts a
+    // visible gradient across the frame AND cycles the beam through several
+    // colour zones during the descent, which is where the "multi-coloured"
+    // reading actually comes from.
     float g = 0.5 + 0.5 * sin(vWorldY * uRampFreq + uRampDrift);
     vec3 col = mix(uColorA, uColorB, g);
 
@@ -139,7 +158,7 @@ const BEAM_FRAG = /* glsl */ `
     // bleached bloom is what turns a cyan/violet beam into a grey searchlight.
     col = mix(col, vec3(1.0), clamp(core * uWhiteMix, 0.0, 1.0));
 
-    float a = (core + mid + halo) * n * uIntensity * (0.72 + uEnergy * 0.75);
+    float a = e * n * uIntensity * (0.72 + uEnergy * 0.75);
 
     // Feather both ends so the column never shows a hard terminator.
     a *= smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
@@ -206,6 +225,8 @@ export interface BeamHandle {
   /** Runs one frame of scene logic. Registered on the clock; exposed so the
    *  camera path and bloom can be driven and measured without a live rAF. */
   step: (t: number, dt: number) => void;
+  /** Live 0..1 presence per stop id, written once per frame. */
+  focusOf: Record<string, number>;
   uniforms: { rampFreq: { value: number }; rampDrift: { value: number }; shared: any };
   dispose: () => void;
 }
@@ -225,6 +246,9 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   const shared = {
     uTime: { value: 0 },
     uEnergy: { value: 0 },
+    // Stop reaction, shared so the core and the haze fray together.
+    uSplinter: { value: 0 },
+    uSpread: { value: 0 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
   };
@@ -379,6 +403,13 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   let camY = 0;
   let camZ = CAM_Z;
 
+  // Live 0..1 presence per stop. Written every frame, read by the stop scenes
+  // and by the DOM overlays, so there is exactly one authority on "are we at
+  // AEQUA" and nothing recomputes it from scroll independently.
+  const focusOf: Record<string, number> = Object.fromEntries(
+    STOPS.map((s) => [s.id, 0]),
+  );
+
   const _dir = new THREE.Vector3();
   const _look = new THREE.Vector3();
 
@@ -403,11 +434,25 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     if (!reduced) rampDrift.value = t * 0.18;
 
     // ---- camera: plunge down the beam --------------------------------------
-    const p = api.view.progress;
-    camY = damp(camY, -p * TRAVEL, 6, dt);
-    // Pull in toward the axis as the descent begins, so it reads as falling
-    // *into* the beam rather than riding alongside it on a rail.
-    camZ = damp(camZ, CAM_Z - Math.sin(Math.min(1, p * 1.15) * Math.PI) * 5.2, 4, dt);
+    // Authored in viewport-heights, not in normalised progress, so a stop sits
+    // at "200vh" regardless of how long the track later becomes.
+    const s = api.view.scrollY / Math.max(1, api.view.vh);
+
+    let focus = 0;
+    for (const stop of STOPS) {
+      const f = focusAt(s, stop);
+      focusOf[stop.id] = f;
+      if (f > focus) focus = f;
+    }
+
+    camY = damp(camY, -descent(s), 6, dt);
+    // Pull in toward the axis at a stop: the descent has plateaued, so closing
+    // distance is what keeps the moment from reading as the page having hung.
+    camZ = damp(camZ, CAM_Z - focus * 4.6, 4, dt);
+
+    // The beam frays and widens where the journey pauses.
+    shared.uSplinter.value = damp(shared.uSplinter.value, focus * 0.34, 5, dt);
+    shared.uSpread.value = damp(shared.uSpread.value, focus * 0.55, 5, dt);
 
     const px = reduced ? 0 : api.pointer.x;
     const py = reduced ? 0 : api.pointer.y;
@@ -446,5 +491,13 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     bloom.dispose?.();
   };
 
-  return { group, bloom, composer, step, uniforms: { rampFreq, rampDrift, shared }, dispose };
+  return {
+    group,
+    bloom,
+    composer,
+    step,
+    focusOf,
+    uniforms: { rampFreq, rampDrift, shared },
+    dispose,
+  };
 }

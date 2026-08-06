@@ -1,0 +1,85 @@
+// THE DESCENT MAP.
+//
+// Scroll position -> depth down the beam, with the project stops built into
+// the mapping itself rather than bolted onto the camera as special cases.
+//
+// The pause at a stop is not the camera "stopping". Scroll keeps flowing —
+// what changes is that the scroll no longer buys depth for the length of the
+// hold window. That distinction matters: momentum, the energy envelope and any
+// scroll-driven DOM keep running normally through a stop, so the page never
+// feels like it seized. Only the descent plateaus.
+//
+// Everything here is authored in viewport-heights, because that is the unit the
+// track is designed in ("AEQUA around 200vh"). Nothing downstream needs to know
+// the total track length.
+
+export interface Stop {
+  id: string;
+  /** Centre of the stop, in viewport-heights down the track. */
+  at: number;
+  /** Total width of the frozen-depth window, in viewport-heights. */
+  hold: number;
+  /** Lead-in/out over which the stop's influence ramps 0..1, in vh. */
+  ramp: number;
+}
+
+export const STOPS: Stop[] = [
+  { id: 'aequa', at: 2.0, hold: 0.9, ramp: 0.6 },
+  { id: 'shifu', at: 4.0, hold: 0.9, ramp: 0.6 },
+];
+
+/** Total document track. Scrollable range is this minus one viewport. */
+export const TRACK_VH = 7;
+
+/** World units of descent bought per viewport-height of effective scroll. */
+export const RATE = 62;
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+const smoothstep = (a: number, b: number, x: number) => {
+  if (a === b) return x < a ? 0 : 1;
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Depth in world units at scroll position `s` (viewport-heights).
+ * Monotonic and non-decreasing: flat across each hold window, linear elsewhere.
+ */
+export function descent(s: number): number {
+  let effective = 0;
+  let cursor = 0;
+
+  for (const stop of STOPS) {
+    const a = stop.at - stop.hold / 2;
+    const b = stop.at + stop.hold / 2;
+
+    if (s <= a) return (effective + (s - cursor)) * RATE;
+
+    effective += a - cursor;
+    cursor = b;
+
+    // Inside the window: depth is frozen at whatever it was on entry.
+    if (s < b) return effective * RATE;
+  }
+
+  return (effective + (s - cursor)) * RATE;
+}
+
+/** Total depth across the whole track, for sizing the beam and placing stops. */
+export const TOTAL_DEPTH = descent(TRACK_VH - 1);
+
+/**
+ * How present a stop is at scroll position `s`: 1 across its hold window,
+ * falling to 0 across the ramp on either side.
+ */
+export function focusAt(s: number, stop: Stop): number {
+  const d = Math.abs(s - stop.at);
+  const inner = stop.hold / 2;
+  return 1 - smoothstep(inner, inner + stop.ramp, d);
+}
+
+/** World Y at the centre of a stop's frame. */
+export function stopDepth(stop: Stop): number {
+  return descent(stop.at);
+}
