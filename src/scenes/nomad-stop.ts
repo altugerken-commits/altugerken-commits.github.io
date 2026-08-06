@@ -107,10 +107,11 @@ const FRAG = /* glsl */ `
 
 export interface NomadHandle {
   group: any;
+  parts: { frosted: number; ceramic: number };
   dispose: () => void;
 }
 
-export function initNomadStop(api: any, beam: any): NomadHandle {
+export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   const { THREE, scene } = api;
 
   // The camera holds at -stopDepth and aims LOOK_AHEAD below itself, so this
@@ -149,26 +150,47 @@ export function initNomadStop(api: any, beam: any): NomadHandle {
   const ceramic = makeMat(0);
   const frosted = makeMat(1);
 
-  // Stacked brewer: square base, carafe, twist-lock collar, cone dripper, lid.
-  // Ceramic carries the structure; the two vessels are the frosted glass, which
-  // is also how the real object would read — you need to see the brew level.
-  const parts: Array<[any, number, any]> = [
-    [new THREE.BoxGeometry(2.3, 0.22, 2.3), -1.85, ceramic],
-    [new THREE.CylinderGeometry(0.95, 1.05, 1.7, 48, 1, true), -0.88, frosted],
-    // The twist-lock: a shallow knurled collar between the stacked components.
-    [new THREE.CylinderGeometry(1.02, 1.02, 0.16, 24, 1, false), 0.05, ceramic],
-    [new THREE.CylinderGeometry(0.52, 0.95, 0.3, 48, 1, true), 0.28, ceramic],
-    [new THREE.CylinderGeometry(1.25, 0.52, 1.25, 48, 1, true), 1.06, frosted],
-    [new THREE.CylinderGeometry(1.3, 1.3, 0.1, 48), 1.74, ceramic],
-  ];
+  // The real model replaces the stacked-primitive placeholder.
+  const { gltf } = await api.loadGLB('/models/nomad-brewer.glb');
+
+  // Which surfaces read as frosted glass is decided from the exported material
+  // NAMES, not from indices. The export carries "Plastic - Matte (Black)",
+  // "Rubber - Bumpy", "Plastic - Glossy (Black)", "Stainless Steel - Brushed"
+  // and friends; indices would silently re-map the moment the model is
+  // re-exported with one more part.
+  const GLOSSY = /glossy|steel|glass|cam|ekran|screen|metal/i;
 
   const geos: any[] = [];
-  for (const [geo, y, mat] of parts) {
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.y = y;
-    group.add(mesh);
-    geos.push(geo);
-  }
+  let glassParts = 0;
+  let mattParts = 0;
+
+  gltf.scene.traverse((c: any) => {
+    if (!c.isMesh) return;
+    const key = `${c.name} ${c.material?.name ?? ''}`;
+    const isGlossy = GLOSSY.test(key);
+    c.material = isGlossy ? frosted : ceramic;
+    if (isGlossy) glassParts++;
+    else mattParts++;
+    geos.push(c.geometry);
+  });
+
+  // Normalise: the export is in its own units and its own origin, and the stop
+  // frames a 4-unit object. Fitting here rather than in the file keeps the
+  // source asset untouched.
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const size = new THREE.Vector3();
+  const centre = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(centre);
+  // 4.8 rather than the placeholder's ~4: the real brewer is a slimmer
+  // silhouette than the stacked cylinders were, and at 3.6 it measured 2.8% of
+  // frame against the placeholder's 6.7% — visibly under-scaled for a showcase.
+  const fit = 4.8 / Math.max(size.x, size.y, size.z || 1);
+  gltf.scene.scale.setScalar(fit);
+  gltf.scene.position.set(-centre.x * fit, -centre.y * fit, -centre.z * fit);
+
+  group.add(gltf.scene);
+  const partCounts = { frosted: glassParts, ceramic: mattParts };
 
   const damp = (a: number, b: number, l: number, dt: number) =>
     a + (b - a) * (1 - Math.exp(-l * dt));
@@ -189,6 +211,7 @@ export function initNomadStop(api: any, beam: any): NomadHandle {
 
   return {
     group,
+    parts: partCounts,
     dispose: () => {
       stop();
       group.removeFromParent();

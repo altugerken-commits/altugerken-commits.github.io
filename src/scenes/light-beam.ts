@@ -19,6 +19,7 @@
 
 import type { Vector2 } from 'three';
 import { STOPS, descent, focusAt, diveAt, DIVE } from '../lib/stops';
+import { warp } from '../lib/warp';
 
 interface StageApi {
   THREE: typeof import('three');
@@ -60,6 +61,12 @@ const DIVE_BLOOM_STRENGTH = 3.2;
 const DIVE_BLOOM_RADIUS = 0.9;
 /** Peak additive light emitted by the flash quad. */
 const FLASH_LEVEL = 16;
+
+// ---- solitary pump ---------------------------------------------------------
+/** Exactly one crest every 3.0s at rest. Collapses under warp. */
+const PUMP_PERIOD = 3.0;
+const PUMP_SPAN = 150;
+const PUMP_GAIN = 2.6;
 
 const DUST_COUNT = 2600;
 /** Dust wraps within this Y window around the camera, so it is always present. */
@@ -319,10 +326,10 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // centred on the camera — comfortably more than the visible column, so the
     // wave is born off the top of frame and dies off the bottom rather than
     // popping into existence mid-screen.
-    uPumpPeriod: { value: 3.0 },
-    uPumpSpan: { value: 150 },
+    uPumpPeriod: { value: PUMP_PERIOD },
+    uPumpSpan: { value: PUMP_SPAN },
     uPumpWidth: { value: 9 },
-    uPumpGain: { value: reduced ? 0.9 : 2.6 },
+    uPumpGain: { value: reduced ? 0.9 : PUMP_GAIN },
     uCamY: { value: 0 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
@@ -720,6 +727,15 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // The solitary crest sweeps relative to the camera, so it needs to know
     // where the camera is.
     shared.uCamY.value = camY;
+
+    // WARP. The pump's period collapses, so the one-crest-per-3s signal
+    // accelerates toward a continuous strobe running down the column — the
+    // beam's own way of expressing speed. Span widens with it so the crests
+    // stay separated instead of collapsing into a flat glow.
+    const wv = warp.value;
+    shared.uPumpPeriod.value = PUMP_PERIOD / (1 + wv * 11);
+    shared.uPumpSpan.value = PUMP_SPAN * (1 + wv * 1.4);
+    shared.uPumpGain.value = PUMP_GAIN * (1 + wv * 0.8);
 
     // ---- billboard ----------------------------------------------------------
     // Yaw only. Rotating on any other axis would tip the beam off vertical.

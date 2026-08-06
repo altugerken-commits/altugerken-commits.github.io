@@ -19,7 +19,7 @@ const LOOK_AHEAD = 7;
 /** Points sampled across the carbon surface. */
 const PARTICLES = 167000;
 /** Applied on top of the pipeline's 4-unit normalisation. */
-const MODEL_SCALE = 0.55;
+const MODEL_SCALE = 1.1;
 
 const SOLID_VERT = /* glsl */ `
   varying vec3 vWorldPos;
@@ -64,14 +64,28 @@ const SOLID_FRAG = /* glsl */ `
     float ndv = clamp(dot(N, V), 0.0, 1.0);
     vec3 env = galaxyEnv(reflect(-V, N));
 
-    // Satin steel: a broad, soft specular lobe. Enamel: darker body, tighter
-    // and brighter highlight. One shader, one uniform between them.
-    float fres = pow(1.0 - ndv, mix(2.8, 1.9, uEnamel));
-    vec3 base = mix(vec3(0.045, 0.047, 0.055), vec3(0.012, 0.012, 0.014), uEnamel);
+    // GLARE CONTROL.
+    //
+    // This previously ran a low fresnel exponent against a gain near 1.0, and
+    // because env is the vivid galaxy palette, not a neutral grey studio,
+    // every grazing surface picked up a near-full-intensity colour wash. On a
+    // car-shaped object that is most of the silhouette, so the model blew out
+    // into a single bright smear.
+    //
+    // Fix is a much steeper falloff plus a far lower gain: the highlight is now
+    // confined to a thin edge, and the body is carried by a dim wrap term
+    // instead. Premium metal reads dark with a controlled edge, not bright.
+    float fres = pow(1.0 - ndv, mix(5.2, 4.4, uEnamel));
+    vec3 base = mix(vec3(0.055, 0.058, 0.066), vec3(0.016, 0.016, 0.019), uEnamel);
+
+    // Desaturated environment for the specular. Chroma belongs in the galaxy
+    // behind the car; a mirror of it across the bodywork is what read as glare.
+    float envL = dot(env, vec3(0.2126, 0.7152, 0.0722));
+    vec3 envSpec = mix(vec3(envL), env, 0.35);
 
     vec3 col = base;
-    col += env * fres * mix(0.7, 1.15, uEnamel);
-    col += env * 0.07 * (1.0 - ndv);
+    col += envSpec * fres * mix(0.22, 0.3, uEnamel);
+    col += envSpec * 0.05 * (1.0 - ndv);
 
     gl_FragColor = vec4(col * uReveal, 1.0);
   }
@@ -334,8 +348,10 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
       uSize: { value: 0.95 },
       uMin: { value: bb.min.clone() },
       uMax: { value: bb.max.clone() },
-      uCool: { value: new THREE.Color(0x171a20) },
-      uHot: { value: palette.uOrange.value.clone() },
+      uCool: { value: new THREE.Color(0x12141a) },
+      // Muted rather than the raw palette orange: 167k additive points at full
+      // chroma summed into the same bloom that was blowing out the body.
+      uHot: { value: palette.uOrange.value.clone().multiplyScalar(0.45) },
     },
     transparent: true,
     blending: THREE.AdditiveBlending,

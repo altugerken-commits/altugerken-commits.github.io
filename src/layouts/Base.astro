@@ -66,6 +66,7 @@ const ogImage = new URL('/og.png', canonical);
       import { ScrollTrigger } from 'gsap/ScrollTrigger';
       import Lenis from 'lenis';
       import { runFrame, measureScroll } from '../lib/loop';
+      import { stepWarp } from '../lib/warp';
 
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -80,6 +81,10 @@ const ogImage = new URL('/og.png', canonical);
         lenis = new Lenis({ lerp: 0.075, wheelMultiplier: 0.85 });
         lenis.on('scroll', ScrollTrigger.update);
       }
+      // Exposed so the warp navigation can drive a programmatic scroll through
+      // the SAME smoothing the wheel uses. Animating window.scrollTo instead
+      // would fight Lenis for control of scrollY and stutter.
+      (window as any).__lenis = lenis;
 
       // gsap hands the ticker (time, deltaTime, ...) with deltaTime in ms.
       // measureScroll needs it to differentiate scrollY into a velocity, and to
@@ -87,6 +92,9 @@ const ogImage = new URL('/og.png', canonical);
       gsap.ticker.add((t, dtMs) => {
         if (lenis) lenis.raf(t * 1000);
         measureScroll(Math.min(dtMs, 100) / 1000);
+        // Advanced before the frame callbacks so every scene reads the same
+        // warp value within a frame.
+        stepWarp(performance.now());
         runFrame(t);
       });
       gsap.ticker.lagSmoothing(0);

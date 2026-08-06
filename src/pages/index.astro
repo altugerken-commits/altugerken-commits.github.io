@@ -52,6 +52,46 @@ import { TRACK_VH } from '../lib/stops';
     aria-hidden="true"
   ></div>
 
+  {/* FIXED NAV. Top-right, above everything including the white-out card. */}
+  <nav class="nav" aria-label="Primary">
+    <button class="nav__btn" type="button" data-warp-home aria-label="Home">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3.6 10.6 12 3.8l8.4 6.8" />
+        <path d="M5.8 9.4V20h12.4V9.4" />
+      </svg>
+      <span class="nav__label">Home</span>
+    </button>
+    <button
+      class="nav__btn"
+      type="button"
+      data-warp-search
+      aria-label="Search stops"
+      aria-expanded="false"
+      aria-controls="warp-menu"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="10.8" cy="10.8" r="6.4" />
+        <path d="m15.6 15.6 4.2 4.2" />
+      </svg>
+      <span class="nav__label">Search</span>
+    </button>
+
+    <ul class="nav__menu" id="warp-menu" data-warp-menu hidden>
+      <li><button type="button" data-warp-to="0">Top</button></li>
+      <li><button type="button" data-warp-to="1">About &amp; Contact</button></li>
+      <li><button type="button" data-warp-to="5">01 — Nomad Brewer</button></li>
+      <li><button type="button" data-warp-to="7.4">02 — Shifu 26</button></li>
+    </ul>
+  </nav>
+
+  {/* Right-hand HUD data points, the typographic half of the blueprint. */}
+  <aside class="blueprint" data-blueprint aria-hidden="true">
+    <p class="hud">01 / Engineering</p>
+    <p class="hud">02 / Composites</p>
+    <p class="hud">03 / Manufacture</p>
+    <p class="hud blueprint__dim">ø 4.4 · sweep 07°</p>
+  </aside>
+
   {/* Pinned to the bottom of the viewport, cleared the moment scrolling starts. */}
   <p class="hero__sub" data-hero-sub>Scroll down to navigate in my design galaxy.</p>
 
@@ -358,6 +398,123 @@ import { TRACK_VH } from '../lib/stops';
     color: color-mix(in oklab, var(--fg) 45%, transparent);
   }
 
+  /* ---- fixed nav --------------------------------------------------------- */
+
+  .nav {
+    position: fixed;
+    top: clamp(1rem, 2.5vw, 2rem);
+    right: clamp(1rem, 3vw, 2.5rem);
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(0.5rem, 1.2vw, 1rem);
+    /* Above the white-out card, which is z-index 2 — the nav is the one thing
+       that must never be swallowed by the threshold. */
+    z-index: 10;
+  }
+
+  .nav__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 0.85em;
+    background: color-mix(in oklab, #000 55%, transparent);
+    border: 1px solid color-mix(in oklab, var(--fg) 16%, transparent);
+    border-radius: 999px;
+    color: color-mix(in oklab, var(--fg) 82%, transparent);
+    font-family: var(--font-display);
+    font-size: clamp(0.85rem, 1.1vw, 1.02rem);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: color 0.35s var(--ease), border-color 0.35s var(--ease),
+      background-color 0.35s var(--ease);
+  }
+  .nav__btn:hover,
+  .nav__btn:focus-visible {
+    color: var(--fg);
+    border-color: color-mix(in oklab, var(--fg) 45%, transparent);
+    background: color-mix(in oklab, #000 72%, transparent);
+  }
+  .nav__btn svg {
+    width: 1.05em;
+    height: 1.05em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .nav__menu {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    min-width: 15rem;
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem;
+    display: grid;
+    gap: 0.15rem;
+    background: color-mix(in oklab, #000 78%, transparent);
+    border: 1px solid color-mix(in oklab, var(--fg) 16%, transparent);
+    border-radius: 0.85rem;
+    backdrop-filter: blur(14px);
+  }
+  .nav__menu[hidden] { display: none; }
+  .nav__menu button {
+    width: 100%;
+    text-align: right;
+    padding: 0.55em 0.7em;
+    background: none;
+    border: 0;
+    border-radius: 0.55rem;
+    color: color-mix(in oklab, var(--fg) 72%, transparent);
+    font-family: var(--font-display);
+    font-size: 0.98rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: color 0.25s var(--ease), background-color 0.25s var(--ease);
+  }
+  .nav__menu button:hover,
+  .nav__menu button:focus-visible {
+    color: var(--fg);
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+  }
+
+  @media (max-width: 560px) {
+    .nav__label { display: none; }
+    .nav__btn { padding: 0.55em; }
+  }
+
+  /* ---- blueprint HUD ----------------------------------------------------- */
+
+  .blueprint {
+    position: fixed;
+    top: 50%;
+    right: clamp(1.5rem, 6vw, 6rem);
+    transform: translateY(-50%);
+    display: grid;
+    gap: 0.75rem;
+    text-align: right;
+    pointer-events: none;
+    opacity: 0;
+    color: color-mix(in oklab, var(--fg) 42%, transparent);
+    z-index: 1;
+  }
+  .blueprint p { margin: 0; }
+  .blueprint__dim {
+    color: color-mix(in oklab, var(--fg) 26%, transparent);
+    margin-top: 0.4rem;
+  }
+
+  /* The blueprint column and the stop panels both live on the right. Below this
+     width there is not room for either to coexist with the object, so the HUD
+     drops out entirely rather than stacking on top of the panels. */
+  @media (max-width: 900px) {
+    .blueprint { display: none; }
+  }
+
   /* Below the fold of a phone the object owns the frame; the panel drops to the
      bottom rather than fighting it for horizontal room. */
   @media (max-width: 640px) {
@@ -387,7 +544,10 @@ import { TRACK_VH } from '../lib/stops';
   import { initStarfield } from '../scenes/starfield';
   import { initNomadStop } from '../scenes/nomad-stop';
   import { initShifuStop } from '../scenes/shifu-stop';
+  import { initBlueprint } from '../scenes/blueprint';
   import { onFrame, view } from '../lib/loop';
+  import { warpTo } from '../lib/warp';
+  import { DIVE } from '../lib/stops';
 
   const probe = document.querySelector<HTMLElement>('[data-probe]');
   const heroSub = document.querySelector<HTMLElement>('[data-hero-sub]');
@@ -401,6 +561,42 @@ import { TRACK_VH } from '../lib/stops';
   // writes both aria-hidden and inert rather than short-circuiting.
   const panelOn: Record<string, boolean | null> = { nomad: null, shifu: null };
   for (const [, el] of panels) if (el) (el as any).inert = true;
+
+  // ---- warp navigation -------------------------------------------------------
+  // Wired outside boot() so the nav works even if the WebGL stage fails: the
+  // scroll still happens, it simply does not streak.
+  const menu = document.querySelector<HTMLElement>('[data-warp-menu]');
+  const searchBtn = document.querySelector<HTMLButtonElement>('[data-warp-search]');
+  const blueprintHud = document.querySelector<HTMLElement>('[data-blueprint]');
+
+  const setMenu = (open: boolean) => {
+    if (!menu || !searchBtn) return;
+    menu.hidden = !open;
+    searchBtn.setAttribute('aria-expanded', String(open));
+  };
+
+  document.querySelector('[data-warp-home]')?.addEventListener('click', () => {
+    setMenu(false);
+    warpTo(0);
+  });
+
+  searchBtn?.addEventListener('click', () => setMenu(Boolean(menu?.hidden)));
+
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-warp-to]')) {
+    btn.addEventListener('click', () => {
+      setMenu(false);
+      warpTo(Number(btn.dataset.warpTo));
+    });
+  }
+
+  // Escape closes, and click-away closes — a menu that can only be dismissed by
+  // its own button is a trap on a page with no other chrome.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setMenu(false);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (menu && !menu.hidden && !(e.target as Element)?.closest('.nav')) setMenu(false);
+  });
 
   const boot = async () => {
     const api = (window as any).__scene;
@@ -419,8 +615,18 @@ import { TRACK_VH } from '../lib/stops';
       const stars = initStarfield(api, beam);
       (window as any).__starfield = stars;
 
-      const nomad = initNomadStop(api, beam);
-      (window as any).__nomadStop = nomad;
+      // Right-hand counterweight to the copy. Lives only across the reading.
+      const blueprint = initBlueprint(api);
+      (window as any).__blueprint = blueprint;
+
+      initNomadStop(api, beam)
+        .then((nomad) => {
+          (window as any).__nomadStop = nomad;
+        })
+        .catch((err) => {
+          if (probe) probe.textContent = 'stop 01 · model failed — see console';
+          console.error('[nomad]', err);
+        });
 
       // SHIFU loads a 539KB model, so it must not block the rest of the scene
       // coming up. It arms itself whenever it lands; the stop is 7.4vh down the
@@ -450,6 +656,13 @@ import { TRACK_VH } from '../lib/stops';
         if (heroSub) {
           const k = Math.min(1, svh / 0.15);
           heroSub.style.opacity = String(1 - k * k);
+        }
+
+        // HUD column tracks the 3D blueprint it belongs to: present across the
+        // reading, gone before the threshold.
+        if (blueprintHud) {
+          const fade = Math.max(0, Math.min(1, (DIVE.start - 0.35 - svh) / 0.8));
+          blueprintHud.style.opacity = String(fade * fade * (3 - 2 * fade));
         }
 
         // "Welcome." belongs to the white plateau and nowhere else. Keyed to

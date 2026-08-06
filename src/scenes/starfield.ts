@@ -57,6 +57,8 @@ const BAND_SHARE = 0.5;
  */
 const BAND_TILT = 0.16;
 const BAND_TIGHTNESS = 70;
+/** Resting field opacity; warp dims it as the streak layer takes over. */
+const BASE_OPACITY = 0.85;
 
 const VERT = /* glsl */ `
   precision highp float;
@@ -122,11 +124,76 @@ const FRAG = /* glsl */ `
   }
 `;
 
+// Streaks are a SEPARATE line layer, not a stretched point. gl_PointSize is a
+// single scalar producing a square sprite — there is no way to elongate a point
+// along a direction. Two vertices per star, with the tail pulled back along the
+// travel axis in the vertex shader, is the only honest way to get a streak, and
+// it costs one extra draw call that is disabled whenever warp is 0.
+const STREAK_VERT = /* glsl */ `
+  precision highp float;
+
+  uniform vec3  uParallax;
+  uniform float uWarp;
+  uniform float uLength;
+
+  attribute float aSize;
+  attribute float aBright;
+  attribute float aMix;
+  attribute float aWhite;
+  /** 0 = head of the streak, 1 = tail. */
+  attribute float aTail;
+
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+
+  varying float vBright;
+  varying vec3  vTint;
+  varying float vTail;
+
+  void main() {
+    float radius = length(position.xz);
+    float near = 1.0 - clamp((radius - ${R_MIN}.0) / (${R_MAX}.0 - ${R_MIN}.0), 0.0, 1.0);
+    vec3 p = position + uParallax * (0.15 + near * 0.85);
+
+    // The camera travels down -Y, so the world streams upward past it. Near
+    // stars streak further than far ones for the same reason they parallax
+    // further — the length scales with the same proximity term.
+    p.y += aTail * uWarp * uLength * (0.25 + near * 1.75);
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+
+    vBright = aBright * (0.6 + aSize * 0.4);
+    vTint = mix(mix(uColorA, uColorB, aMix), vec3(1.0), aWhite);
+    vTail = aTail;
+  }
+`;
+
+const STREAK_FRAG = /* glsl */ `
+  precision highp float;
+
+  uniform float uOpacity;
+  uniform float uWarp;
+
+  varying float vBright;
+  varying vec3  vTint;
+  varying float vTail;
+
+  void main() {
+    // Fades along its length so the streak has a head and dissolves behind it,
+    // rather than reading as a hard rod.
+    float fade = 1.0 - vTail;
+    gl_FragColor = vec4(vTint * vBright * uOpacity * uWarp * fade * 1.6, 1.0);
+  }
+`;
+
 export interface StarfieldHandle {
   points: any;
+  streaks: any;
   uniforms: any;
   dispose: () => void;
 }
+
+import { warp } from '../lib/warp';
 
 export function initStarfield(api: any, beam: any): StarfieldHandle {
   const { THREE, scene } = api;
@@ -193,7 +260,7 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     uSize: { value: 1.35 },
     uParallax: { value: new THREE.Vector3() },
     // The volume knob for the whole field.
-    uOpacity: { value: 0.85 },
+    uOpacity: { value: BASE_OPACITY },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -212,6 +279,63 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
   points.frustumCulled = false;
   points.renderOrder = -10;
   scene.add(points);
+
+  // ---- warp streaks ----------------------------------------------------------
+  // Two vertices per star sharing the same source position; aTail marks which
+  // end is the tail. Attributes are duplicated rather than instanced because
+  // the whole layer is one static buffer built once and only its uniforms move.
+  const streakGeo = new THREE.BufferGeometry();
+  const sPos = new Float32Array(COUNT * 6);
+  const sSize = new Float32Array(COUNT * 2);
+  const sBright = new Float32Array(COUNT * 2);
+  const sMix = new Float32Array(COUNT * 2);
+  const sWhite = new Float32Array(COUNT * 2);
+  const sTail = new Float32Array(COUNT * 2);
+  for (let i = 0; i < COUNT; i++) {
+    for (let k = 0; k < 2; k++) {
+      const o = i * 2 + k;
+      sPos[o * 3] = pos[i * 3];
+      sPos[o * 3 + 1] = pos[i * 3 + 1];
+      sPos[o * 3 + 2] = pos[i * 3 + 2];
+      sSize[o] = size[i];
+      sBright[o] = bright[i];
+      sMix[o] = mix[i];
+      sWhite[o] = white[i];
+      sTail[o] = k;
+    }
+  }
+  streakGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+  streakGeo.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
+  streakGeo.setAttribute('aBright', new THREE.BufferAttribute(sBright, 1));
+  streakGeo.setAttribute('aMix', new THREE.BufferAttribute(sMix, 1));
+  streakGeo.setAttribute('aWhite', new THREE.BufferAttribute(sWhite, 1));
+  streakGeo.setAttribute('aTail', new THREE.BufferAttribute(sTail, 1));
+
+  const streakUniforms = {
+    uParallax: uniforms.uParallax,
+    uColorA: uniforms.uColorA,
+    uColorB: uniforms.uColorB,
+    uOpacity: uniforms.uOpacity,
+    uWarp: { value: 0 },
+    uLength: { value: 26 },
+  };
+
+  const streakMat = new THREE.ShaderMaterial({
+    vertexShader: STREAK_VERT,
+    fragmentShader: STREAK_FRAG,
+    uniforms: streakUniforms,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    toneMapped: false,
+  });
+
+  const streaks = new THREE.LineSegments(streakGeo, streakMat);
+  streaks.frustumCulled = false;
+  streaks.renderOrder = -9;
+  streaks.visible = false;
+  scene.add(streaks);
 
   const damp = (a: number, b: number, l: number, dt: number) =>
     a + (b - a) * (1 - Math.exp(-l * dt));
@@ -236,16 +360,29 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     // Opposite the cursor: the field slides against the movement, which is what
     // makes it sit behind everything else.
     uniforms.uParallax.value.set(-px * PARALLAX_X, -py * PARALLAX_Y, 0);
+
+    // Streaks exist only in transit. Skipping the draw entirely when idle keeps
+    // 26k extra line vertices off the ordinary frame.
+    const w = warp.value;
+    streakUniforms.uWarp.value = w;
+    streaks.visible = w > 0.002;
+    // Points dim as the streaks take over, so the field does not read as twice
+    // as bright mid-warp.
+    uniforms.uOpacity.value = BASE_OPACITY * (1 - w * 0.55);
   });
 
   return {
     points,
+    streaks,
     uniforms,
     dispose: () => {
       stop();
       points.removeFromParent();
+      streaks.removeFromParent();
       geo.dispose();
       material.dispose();
+      streakGeo.dispose();
+      streakMat.dispose();
     },
   };
 }
