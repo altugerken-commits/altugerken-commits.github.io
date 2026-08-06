@@ -34,7 +34,7 @@ const R_MAX = 520;
  * than the generous -420..200 it started with.
  *
  * The field visibly thinned as the camera descended: 1578 stars in frustum at
- * the hero but only 367 at the AEQUA stop and 184 at the SHIFU region. That was
+ * the hero but only 367 at the first stop and 184 at the SHIFU region. That was
  * survivable while the beam dominated the frame. It is not survivable now the
  * beam dies at the dive and the starfield becomes the entire showcase
  * environment — the deepest part of the journey was also the emptiest.

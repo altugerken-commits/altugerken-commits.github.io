@@ -4,14 +4,14 @@ import { TRACK_VH } from '../lib/stops';
 ---
 
 <Base>
-  {/* The camera reads window scroll through lib/loop's `view`, and the descent
-      map in lib/stops authors the stops in viewport-heights. The track just
-      has to be long enough to contain them. */}
-  <div class="scroll-track" style={`height:${TRACK_VH * 100}vh`} aria-hidden="true"></div>
+  {/* Greeting first, then About/Contact, then the empty track that gives the
+      camera something to travel across.
 
-  {/* Hero and About are in normal document flow — they scroll away with the
-      page. Only the fixed layer below (subtitle, stop panels, white-out card)
-      is pinned. */}
+      The track USED to come first. That was invisible while the hero was
+      position:fixed, but the moment the hero moved into normal flow the track's
+      1000vh of empty div sat in front of it and pushed the greeting and the
+      About copy to the very bottom of the document. Content leads; the spacer
+      follows and is sized to whatever is left. */}
   <section class="hero">
     <h1 class="hero__title display" data-greeting>Good Evening.</h1>
   </section>
@@ -30,11 +30,27 @@ import { TRACK_VH } from '../lib/stops';
         the decisions that do not show: wall thickness, draft, the tolerance
         that makes an assembly feel deliberate instead of merely tight.
       </p>
-      <p>
-        Below are two of them. Keep scrolling.
-      </p>
+    </div>
+
+    <div class="about__contact">
+      <p class="hud about__label">Contact</p>
+      <ul class="about__links hud">
+        <li><a href="mailto:altug.erken@ozu.edu.tr">altug.erken@ozu.edu.tr</a></li>
+        <li><a href="https://www.linkedin.com/" rel="me noopener" target="_blank">LinkedIn</a></li>
+        <li><a href="https://github.com/altugerken-commits" rel="me noopener" target="_blank">GitHub</a></li>
+      </ul>
+      <p class="about__cue display">Keep scrolling.</p>
     </div>
   </section>
+
+  {/* Empty travel for the camera. Sized to the remainder of the track so the
+      total document height still equals TRACK_VH regardless of how tall the
+      content above grows. */}
+  <div
+    class="scroll-track"
+    style={`height:calc(${TRACK_VH * 100}vh - 200vh)`}
+    aria-hidden="true"
+  ></div>
 
   {/* Pinned to the bottom of the viewport, cleared the moment scrolling starts. */}
   <p class="hero__sub" data-hero-sub>Scroll down to navigate in my design galaxy.</p>
@@ -63,17 +79,17 @@ import { TRACK_VH } from '../lib/stops';
     window.__setGreeting();
   </script>
 
-  {/* FIRST STOP — AEQUA. Sits opposite the object, which holds frame centre
-      inside the beam. Hidden from AT and from tab order until it is present. */}
-  <aside class="stop stop--right" data-stop="aequa" aria-hidden="true">
+  {/* FIRST STOP — NOMAD BREWER. Sits opposite the object, which holds frame
+      centre. Hidden from AT and from tab order until it is present. */}
+  <aside class="stop stop--right" data-stop="nomad" aria-hidden="true">
     <p class="hud stop__index">01 — Stop</p>
-    <h2 class="stop__title display">Aequa</h2>
+    <h2 class="stop__title display">Nomad Brewer</h2>
     <dl class="stop__meta hud">
-      <div><dt>Type</dt><dd>Modular outdoor coffee &amp; tea brewer</dd></div>
-      <div><dt>System</dt><dd>Stacked components · twist-lock</dd></div>
-      <div><dt>Materials</dt><dd>Matte ceramic · frosted glass</dd></div>
+      <div><dt>Type</dt><dd>Modular outdoor coffee &amp; tea brewing device</dd></div>
+      <div><dt>System</dt><dd>Stacked components · twist-lock mechanism</dd></div>
+      <div><dt>Materials</dt><dd>Dark matte ceramic · frosted glass</dd></div>
     </dl>
-    <button class="stop__cta hud" type="button" data-stop-cta="aequa">
+    <button class="stop__cta hud" type="button" data-stop-cta="nomad">
       <span>View details</span>
       <span class="stop__rule" aria-hidden="true"></span>
     </button>
@@ -165,6 +181,37 @@ import { TRACK_VH } from '../lib/stops';
     text-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
   }
   .about__body p { margin: 0; }
+
+  .about__contact {
+    display: grid;
+    gap: clamp(0.75rem, 2vh, 1.25rem);
+    margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  }
+  .about__links {
+    list-style: none;
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+  }
+  .about__links a {
+    color: color-mix(in oklab, var(--fg) 78%, transparent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--fg) 22%, transparent);
+    padding-bottom: 0.15em;
+    transition: color 0.4s var(--ease), border-color 0.4s var(--ease);
+  }
+  .about__links a:hover,
+  .about__links a:focus-visible {
+    color: var(--fg);
+    border-color: var(--fg);
+  }
+  .about__cue {
+    margin: clamp(0.5rem, 2vh, 1.5rem) 0 0;
+    font-size: clamp(1rem, 1.5vw, 1.35rem);
+    font-style: italic;
+    color: color-mix(in oklab, var(--fg) 55%, transparent);
+  }
 
   @media (max-width: 860px) {
     .about {
@@ -338,7 +385,7 @@ import { TRACK_VH } from '../lib/stops';
   import { initLightBeam } from '../scenes/light-beam';
   import { initNebula } from '../scenes/nebula';
   import { initStarfield } from '../scenes/starfield';
-  import { initAequaStop } from '../scenes/aequa-stop';
+  import { initNomadStop } from '../scenes/nomad-stop';
   import { initShifuStop } from '../scenes/shifu-stop';
   import { onFrame, view } from '../lib/loop';
 
@@ -346,13 +393,13 @@ import { TRACK_VH } from '../lib/stops';
   const heroSub = document.querySelector<HTMLElement>('[data-hero-sub]');
   const threshold = document.querySelector<HTMLElement>('[data-threshold]');
   const panels: Array<[string, HTMLElement | null]> = [
-    ['aequa', document.querySelector<HTMLElement>('[data-stop="aequa"]')],
+    ['nomad', document.querySelector<HTMLElement>('[data-stop="nomad"]')],
     ['shifu', document.querySelector<HTMLElement>('[data-stop="shifu"]')],
   ];
 
   // Null until the first frame decides, so the very first evaluation always
   // writes both aria-hidden and inert rather than short-circuiting.
-  const panelOn: Record<string, boolean | null> = { aequa: null, shifu: null };
+  const panelOn: Record<string, boolean | null> = { nomad: null, shifu: null };
   for (const [, el] of panels) if (el) (el as any).inert = true;
 
   const boot = async () => {
@@ -372,8 +419,8 @@ import { TRACK_VH } from '../lib/stops';
       const stars = initStarfield(api, beam);
       (window as any).__starfield = stars;
 
-      const aequa = initAequaStop(api, beam);
-      (window as any).__aequaStop = aequa;
+      const nomad = initNomadStop(api, beam);
+      (window as any).__nomadStop = nomad;
 
       // SHIFU loads a 539KB model, so it must not block the rest of the scene
       // coming up. It arms itself whenever it lands; the stop is 7.4vh down the

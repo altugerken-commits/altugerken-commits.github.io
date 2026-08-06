@@ -1,7 +1,7 @@
 // THE DEEP VOID FLOOR — a nebula you should never quite catch looking at.
 //
 // This is the permanent atmosphere. The beam is an intro element and dies at
-// the white-out; the nebula and the starfield are what the AEQUA and SHIFU
+// the white-out; the nebula and the starfield are what the Nomad and SHIFU
 // showcases actually sit in. So it is deliberately NOT part of the beam group
 // — nothing about the kill can reach it.
 //

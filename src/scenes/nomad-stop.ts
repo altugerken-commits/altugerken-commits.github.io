@@ -1,4 +1,4 @@
-// FIRST STOP — AEQUA.
+// FIRST STOP — NOMAD BREWER.
 //
 // Placeholder geometry standing in for the brewer: stacked primitives, built
 // to be replaced by a real .glb without anything else in this file changing.
@@ -12,7 +12,7 @@
 
 import { STOPS, stopDepth } from '../lib/stops';
 
-const AEQUA = STOPS.find((s) => s.id === 'aequa')!;
+const NOMAD = STOPS.find((s) => s.id === 'nomad')!;
 
 /** Camera looks this far below itself; the object sits on that point. */
 const LOOK_AHEAD = 7;
@@ -105,17 +105,17 @@ const FRAG = /* glsl */ `
   }
 `;
 
-export interface AequaHandle {
+export interface NomadHandle {
   group: any;
   dispose: () => void;
 }
 
-export function initAequaStop(api: any, beam: any): AequaHandle {
+export function initNomadStop(api: any, beam: any): NomadHandle {
   const { THREE, scene } = api;
 
   // The camera holds at -stopDepth and aims LOOK_AHEAD below itself, so this
   // is the world Y that lands dead centre of frame during the pause.
-  const objectY = -stopDepth(AEQUA) - LOOK_AHEAD;
+  const objectY = -stopDepth(NOMAD) - LOOK_AHEAD;
 
   const group = new THREE.Group();
   group.position.set(0, objectY, 0);
@@ -174,7 +174,7 @@ export function initAequaStop(api: any, beam: any): AequaHandle {
     a + (b - a) * (1 - Math.exp(-l * dt));
 
   const stop = api.onTick((_t: number, dt: number) => {
-    const f = beam.focusOf.aequa ?? 0;
+    const f = beam.focusOf.nomad ?? 0;
 
     shared.uReveal.value = damp(shared.uReveal.value, f, 5, dt);
     shared.uScan.value = damp(shared.uScan.value, f, 3.5, dt);

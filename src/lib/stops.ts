@@ -10,7 +10,7 @@
 // feels like it seized. Only the descent plateaus.
 //
 // Everything here is authored in viewport-heights, because that is the unit the
-// track is designed in ("AEQUA around 200vh"). Nothing downstream needs to know
+// track is designed in ("the first stop around 500vh"). Nothing downstream knows
 // the total track length.
 
 export interface Stop {
@@ -24,7 +24,7 @@ export interface Stop {
 }
 
 export const STOPS: Stop[] = [
-  { id: 'aequa', at: 5.0, hold: 1.0, ramp: 0.7 },
+  { id: 'nomad', at: 5.0, hold: 1.0, ramp: 0.7 },
   { id: 'shifu', at: 7.4, hold: 1.0, ramp: 0.7 },
 ];
 
@@ -33,18 +33,19 @@ export const STOPS: Stop[] = [
  *
  * A threshold before the first stop: the camera leaves its parallel descent,
  * closes onto the beam axis, passes through the core — where the frame blows
- * to white — and pulls back out into the AEQUA stop.
+ * to white — and pulls back out into the Nomad Brewer stop.
  *
  * `peak` is where the camera is dead centre. `hold` is a plateau of full
  * intensity centred on the peak — dive stays pinned at 1 across it, so the
  * pure-white frame lasts long enough to carry the "Welcome." card rather than
  * being an instant the eye barely registers.
  *
- * Pushed deep (2.6-4.1vh) to leave the whole first stretch of the track to the
- * hero and the About section, which the visitor reads before the camera
- * commits to the threshold.
+ * The hero occupies 0-1vh and About/Contact 1-2vh, so the buildup begins at
+ * 2.15 — just past the end of the reading — and takes 1.4vh to reach the
+ * plateau. That long approach is the point: the white has to arrive as a glow
+ * that climbs the frame, not as a cut.
  */
-export const DIVE = { start: 2.6, peak: 3.3, hold: 0.55, end: 4.1 };
+export const DIVE = { start: 2.15, peak: 3.75, hold: 0.7, end: 4.7 };
 
 /** Total document track. Scrollable range is this minus one viewport. */
 export const TRACK_VH = 10;

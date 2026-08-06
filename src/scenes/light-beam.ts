@@ -471,7 +471,7 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   // blow-out has to be true of the framebuffer itself, not of something
   // covering it.
   const FlashShader = {
-    uniforms: { tDiffuse: { value: null }, uLevel: { value: 0 } },
+    uniforms: { tDiffuse: { value: null }, uLevel: { value: 0 }, uRise: { value: 0 } },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() {
@@ -483,9 +483,28 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
       precision highp float;
       uniform sampler2D tDiffuse;
       uniform float uLevel;
+      uniform float uRise;
       varying vec2 vUv;
+
       void main() {
-        gl_FragColor = texture2D(tDiffuse, vUv) + vec4(vec3(uLevel), 0.0);
+        // The white does not flood the frame uniformly — it RISES. A front
+        // sweeps from below the bottom edge to above the top as the dive
+        // builds, so the threshold reads as light welling up from the floor
+        // and consuming the view, rather than the exposure simply being pulled
+        // on everything at once.
+        //
+        // vUv.y is 0 at the bottom of the frame. The front travels from -0.25
+        // (fully off-screen below, nothing lit) to 1.25 (past the top, all lit)
+        // so both ends of the sweep are clean.
+        float front = mix(-0.25, 1.25, uRise);
+        // Wide soft edge: a hard line would read as a wipe, not a glow.
+        float fill = 1.0 - smoothstep(front - 0.55, front + 0.08, vUv.y);
+
+        // A brighter lip just under the front — the leading edge of the glow.
+        float lip = exp(-pow((vUv.y - front) * 4.5, 2.0)) * 0.35;
+
+        float amt = clamp(fill + lip, 0.0, 1.4);
+        gl_FragColor = texture2D(tDiffuse, vUv) + vec4(vec3(uLevel * amt), 0.0);
       }
     `,
   };
@@ -538,7 +557,7 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
 
   // Live 0..1 presence per stop. Written every frame, read by the stop scenes
   // and by the DOM overlays, so there is exactly one authority on "are we at
-  // AEQUA" and nothing recomputes it from scroll independently.
+  // a stop" and nothing recomputes it from scroll independently.
   const focusOf: Record<string, number> = Object.fromEntries(
     STOPS.map((s) => [s.id, 0]),
   );
@@ -670,7 +689,11 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // abruptly did not. Emitting light instead lets the exit sweep through
     // genuine mid-greys as the level falls, which is what "emerging from the
     // white" actually looks like.
-    const flashAmt = Math.pow(effDive, 2.5);
+    // Level ramps late, the front rises early. Separating them is what makes
+    // the buildup gradual: the glow is already climbing the frame while it is
+    // still dim, instead of the whole screen brightening at once at the end.
+    const flashAmt = Math.pow(effDive, 1.8);
+    flashPass.uniforms.uRise.value = Math.pow(effDive, 0.72);
     flashPass.uniforms.uLevel.value = flashAmt * FLASH_LEVEL;
     flashPass.enabled = flashAmt > 0.0004;
 
