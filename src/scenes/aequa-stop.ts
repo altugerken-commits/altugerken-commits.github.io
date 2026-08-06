@@ -37,38 +37,69 @@ const FRAG = /* glsl */ `
   uniform float uTime;
   uniform float uReveal;
   uniform float uScan;
-  uniform float uRampFreq;
-  uniform float uRampDrift;
-  uniform vec3  uColorA;
-  uniform vec3  uColorB;
+  uniform float uGlass;
+  uniform vec3  uPurple;
+  uniform vec3  uPink;
+  uniform vec3  uOrange;
+  uniform vec3  uYellow;
   uniform float uObjectY;
 
   varying vec3 vWorldPos;
   varying vec3 vNormalW;
   varying vec3 vViewDir;
 
+  // The galaxy, approximated as an environment. The real nebula is a noise
+  // field on a sky sphere and far too costly to evaluate per surface fragment,
+  // but its PALETTE is what the eye reads in a reflection — so the ramp is
+  // reproduced from the same four colours, driven by the reflected direction.
+  // The object therefore picks up the room it is standing in.
+  vec3 galaxyEnv(vec3 dir) {
+    float t = 0.5 + 0.5 * dir.y;
+    float s = 0.5 + 0.5 * dir.x;
+    vec3 c = mix(uPurple, uPink, smoothstep(0.15, 0.62, t));
+    c = mix(c, uOrange, smoothstep(0.55, 0.9, t) * 0.85);
+    c = mix(c, uYellow, smoothstep(0.72, 0.98, s) * 0.35);
+    return c;
+  }
+
   void main() {
-    // Same world-space colour ramp the beam uses, so the object is lit by the
-    // beam's actual colour at its own depth rather than a hand-picked accent.
-    float g = 0.5 + 0.5 * sin(vWorldPos.y * uRampFreq + uRampDrift);
-    vec3 beamCol = mix(uColorA, uColorB, g);
+    vec3 N = normalize(vNormalW);
+    vec3 V = normalize(vViewDir);
+    float ndv = clamp(dot(N, V), 0.0, 1.0);
 
-    // Illumination falls off with distance from the beam axis.
-    float axis = length(vWorldPos.xz);
-    float lit = exp(-axis * 0.55);
+    vec3 R = reflect(-V, N);
+    vec3 env = galaxyEnv(R);
 
-    // Silhouette. The rim is where a volumetric source reads hardest.
-    float fres = pow(1.0 - clamp(dot(normalize(vNormalW), normalize(vViewDir)), 0.0, 1.0), 2.6);
+    // Schlick-ish fresnel. Ceramic gets a soft wide falloff, glass a tight
+    // bright edge — the exponent is what separates "matte" from "polished"
+    // far more than base colour does.
+    float fresCeramic = pow(1.0 - ndv, 3.4);
+    float fresGlass   = pow(1.0 - ndv, 1.6);
+    float fres = mix(fresCeramic, fresGlass, uGlass);
 
-    // A band travelling up the form while the stop is held — the "scanner"
-    // reading of the beam interacting with an object.
+    // ---- dark matte ceramic -------------------------------------------------
+    // Very dark, very diffuse. A matte body's whole character is that it takes
+    // colour from the environment across a broad angle instead of mirroring it,
+    // so the env term is wide and heavily attenuated.
+    vec3 ceramic = vec3(0.018, 0.018, 0.021);
+    ceramic += env * 0.09 * (0.35 + 0.65 * (1.0 - ndv));
+    ceramic += env * fresCeramic * 0.55;
+
+    // ---- frosted glass ------------------------------------------------------
+    // Frost is forward scatter: bright at grazing angles, milky through the
+    // middle, and it carries more of the environment than the ceramic does.
+    vec3 glass = vec3(0.05, 0.055, 0.07);
+    glass += env * 0.55 * fresGlass;
+    glass += env * 0.16;
+    // Milky interior — the give-away that it is frosted and not clear.
+    glass += vec3(0.10, 0.11, 0.14) * (1.0 - fresGlass) * 0.6;
+
+    vec3 col = mix(ceramic, glass, uGlass);
+
+    // Scan band travelling up the form while the stop is held.
     float local = vWorldPos.y - uObjectY;
     float band = exp(-pow((local - (fract(uTime * 0.22) * 6.0 - 3.0)) * 2.2, 2.0));
-
-    vec3 col = vec3(0.012);                       // near-black body
-    col += beamCol * fres * lit * 1.5;            // rim
-    col += beamCol * band * uScan * lit * 0.9;    // scan sweep
-    col += beamCol * lit * 0.06;                  // ambient wash off the beam
+    col += env * band * uScan * 0.5;
 
     gl_FragColor = vec4(col * uReveal, 1.0);
   }
@@ -90,41 +121,51 @@ export function initAequaStop(api: any, beam: any): AequaHandle {
   group.position.set(0, objectY, 0);
   scene.add(group);
 
-  const uniforms = {
+  // Palette is shared by reference with the nebula where possible, so the
+  // object reflects the galaxy that is actually behind it.
+  const nebU = (window as any).__nebula?.uniforms;
+  const shared = {
     uTime: beam.uniforms.shared.uTime,
-    uRampFreq: beam.uniforms.rampFreq,
-    uRampDrift: beam.uniforms.rampDrift,
-    uColorA: beam.uniforms.shared.uColorA,
-    uColorB: beam.uniforms.shared.uColorB,
     uReveal: { value: 0 },
     uScan: { value: 0 },
     uObjectY: { value: objectY },
+    uPurple: nebU?.uPurple ?? { value: new THREE.Color(0x7b3ff2) },
+    uPink: nebU?.uPink ?? { value: new THREE.Color(0xff3d9a) },
+    uOrange: nebU?.uOrange ?? { value: new THREE.Color(0xff7a2f) },
+    uYellow: nebU?.uYellow ?? { value: new THREE.Color(0xffc861) },
   };
 
-  const material = new THREE.ShaderMaterial({
-    vertexShader: VERT,
-    fragmentShader: FRAG,
-    uniforms,
-    transparent: true,
-    depthWrite: true,
-    toneMapped: false,
-  });
+  const makeMat = (glass: number) =>
+    new THREE.ShaderMaterial({
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      uniforms: { ...shared, uGlass: { value: glass } },
+      transparent: true,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
 
-  // Stacked brewer: square base, carafe, waist, cone dripper, lid.
-  const parts: Array<[any, number]> = [
-    [new THREE.BoxGeometry(2.3, 0.22, 2.3), -1.85],
-    [new THREE.CylinderGeometry(0.95, 1.05, 1.7, 48, 1, true), -0.88],
-    [new THREE.CylinderGeometry(0.52, 0.95, 0.34, 48, 1, true), 0.14],
-    [new THREE.CylinderGeometry(1.25, 0.52, 1.25, 48, 1, true), 0.94],
-    [new THREE.CylinderGeometry(1.3, 1.3, 0.1, 48), 1.62],
+  const ceramic = makeMat(0);
+  const frosted = makeMat(1);
+
+  // Stacked brewer: square base, carafe, twist-lock collar, cone dripper, lid.
+  // Ceramic carries the structure; the two vessels are the frosted glass, which
+  // is also how the real object would read — you need to see the brew level.
+  const parts: Array<[any, number, any]> = [
+    [new THREE.BoxGeometry(2.3, 0.22, 2.3), -1.85, ceramic],
+    [new THREE.CylinderGeometry(0.95, 1.05, 1.7, 48, 1, true), -0.88, frosted],
+    // The twist-lock: a shallow knurled collar between the stacked components.
+    [new THREE.CylinderGeometry(1.02, 1.02, 0.16, 24, 1, false), 0.05, ceramic],
+    [new THREE.CylinderGeometry(0.52, 0.95, 0.3, 48, 1, true), 0.28, ceramic],
+    [new THREE.CylinderGeometry(1.25, 0.52, 1.25, 48, 1, true), 1.06, frosted],
+    [new THREE.CylinderGeometry(1.3, 1.3, 0.1, 48), 1.74, ceramic],
   ];
 
   const geos: any[] = [];
-  for (const [geo, y] of parts) {
-    const mesh = new THREE.Mesh(geo, material);
+  for (const [geo, y, mat] of parts) {
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = y;
-    // Open-ended cylinders need both faces or the form reads hollow from below.
-    mesh.material.side = THREE.DoubleSide;
     group.add(mesh);
     geos.push(geo);
   }
@@ -135,15 +176,15 @@ export function initAequaStop(api: any, beam: any): AequaHandle {
   const stop = api.onTick((_t: number, dt: number) => {
     const f = beam.focusOf.aequa ?? 0;
 
-    uniforms.uReveal.value = damp(uniforms.uReveal.value, f, 5, dt);
-    uniforms.uScan.value = damp(uniforms.uScan.value, f, 3.5, dt);
+    shared.uReveal.value = damp(shared.uReveal.value, f, 5, dt);
+    shared.uScan.value = damp(shared.uScan.value, f, 3.5, dt);
 
     // Slow presentation turn, and a rise into place as the stop takes hold.
     group.rotation.y += dt * 0.22 * (0.25 + f);
-    group.position.y = objectY - (1 - uniforms.uReveal.value) * 2.2;
-    const s = 0.82 + uniforms.uReveal.value * 0.18;
+    group.position.y = objectY - (1 - shared.uReveal.value) * 2.2;
+    const s = 0.82 + shared.uReveal.value * 0.18;
     group.scale.set(s, s, s);
-    group.visible = uniforms.uReveal.value > 0.002;
+    group.visible = shared.uReveal.value > 0.002;
   });
 
   return {
@@ -152,7 +193,8 @@ export function initAequaStop(api: any, beam: any): AequaHandle {
       stop();
       group.removeFromParent();
       for (const g of geos) g.dispose();
-      material.dispose();
+      ceramic.dispose();
+      frosted.dispose();
     },
   };
 }

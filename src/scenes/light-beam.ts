@@ -103,10 +103,11 @@ const BEAM_FRAG = /* glsl */ `
   uniform float uSplinter;
   uniform float uSpread;
   uniform float uBoost;
-  uniform float uPumpDepth;
-  uniform float uPumpFreq;
-  uniform float uPumpSpeed;
-  uniform float uPumpSharp;
+  uniform float uPumpPeriod;
+  uniform float uPumpSpan;
+  uniform float uPumpWidth;
+  uniform float uPumpGain;
+  uniform float uCamY;
   uniform vec3  uColorA;
   uniform vec3  uColorB;
 
@@ -165,22 +166,28 @@ const BEAM_FRAG = /* glsl */ `
       0.60;
     n = mix(1.0, n, uFlickerAmt);
 
-    // ---- directional pump ---------------------------------------------------
-    // A crest of brightness travelling DOWN the column, so the beam reads as a
-    // neon arrow rather than a static light.
+    // ---- solitary pump ------------------------------------------------------
+    // ONE crest, born at the top of the visible column, travelling its whole
+    // length and gone at the bottom — then nothing until the cycle repeats.
     //
-    // Direction is in the sign, and it is easy to get backwards. A point of
-    // constant phase satisfies vWorldY * freq + t * speed = k, so it sits at
-    // vWorldY = (k - t*speed) / freq — which decreases as t grows whenever
-    // freq and speed share a sign. World Y is up, so decreasing Y is downward
-    // travel. Both positive therefore pumps toward the floor, which is where
-    // the journey goes.
-    float pump = 0.5 + 0.5 * sin(vWorldY * uPumpFreq + uTime * uPumpSpeed);
-    // Sharpened so it reads as a discrete crest passing through, not a slow
-    // sinusoidal breathe over the whole beam.
-    pump = pow(pump, uPumpSharp);
-    // Never modulates to zero: the beam dims between crests, it does not blink.
-    float pumpMul = (1.0 - uPumpDepth) + uPumpDepth * pump;
+    // This replaces a continuous sinusoid, which put a crest on screen at all
+    // times and therefore read as texture rather than as a signal. A single
+    // travelling wave is legible as an instruction: go that way.
+    //
+    // The sweep is anchored to the CAMERA, not to world origin. The camera
+    // descends 260 units across the track, so a world-anchored wave would
+    // drift out of frame and the pump would vanish for most of the journey.
+    float ph = fract(uTime / uPumpPeriod);
+    float waveY = uCamY + uPumpSpan * 0.5 - ph * uPumpSpan;
+
+    // Gaussian crest. Falls to nothing well inside the span so the wave truly
+    // disappears at the bottom rather than wrapping visibly to the top.
+    float d = (vWorldY - waveY) / uPumpWidth;
+    float pulse = exp(-d * d);
+
+    // Additive: the beam keeps its resting brightness and the crest rides over
+    // it. Modulating downward instead would read as a dark band travelling.
+    float pumpMul = 1.0 + uPumpGain * pulse;
 
     // World-space colour ramp, cyan <-> violet.
     //
@@ -308,14 +315,15 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // overwhelms the frame from the geometry outward, rather than the white
     // being painted on by post alone.
     uBoost: { value: 1 },
-    // Downward pump. ~26 world-unit wavelength travelling roughly one
-    // wavelength every 2.2s — slow enough to read as guidance rather than
-    // strobing, fast enough to be unmistakably directional. Shallow under
-    // reduced-motion rather than off, so the beam still has a pulse.
-    uPumpDepth: { value: reduced ? 0.1 : 0.5 },
-    uPumpFreq: { value: (Math.PI * 2) / 26 },
-    uPumpSpeed: { value: reduced ? 0.6 : 2.8 },
-    uPumpSharp: { value: 2.6 },
+    // Solitary pump: exactly one crest every 3.0s, sweeping a 150-unit span
+    // centred on the camera — comfortably more than the visible column, so the
+    // wave is born off the top of frame and dies off the bottom rather than
+    // popping into existence mid-screen.
+    uPumpPeriod: { value: 3.0 },
+    uPumpSpan: { value: 150 },
+    uPumpWidth: { value: 9 },
+    uPumpGain: { value: reduced ? 0.9 : 2.6 },
+    uCamY: { value: 0 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
   };
@@ -353,7 +361,11 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
         uCoreGain: { value: opts.coreGain },
         uMidGain: { value: opts.midGain },
         uHaloGain: { value: opts.haloGain },
-        uFlickerAmt: { value: reduced ? 0.15 : opts.flicker },
+        // Continuous flicker is off: the brief asks for a solitary wave
+        // "instead of a continuous flicker", and any residual churn competes
+        // with the crest for the eye. Kept as a uniform so it can be dialled
+        // back in without touching the shader.
+        uFlickerAmt: { value: 0 },
         uRampFreq: rampFreq,
         uRampDrift: rampDrift,
         uWhiteMix: { value: opts.whiteMix },
@@ -563,8 +575,12 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     a + (b - a) * (1 - Math.exp(-l * dt));
 
   const step = (t: number, dt: number) => {
-    const w = innerWidth || 1;
-    const h = innerHeight || 1;
+    // Match Scene.astro's resize exactly. Sizing the composer from innerWidth
+    // while the renderer sizes from the canvas box would put the post targets
+    // at a different resolution than the frame they filter.
+    const cv = renderer.domElement;
+    const w = cv.clientWidth || innerWidth || 1;
+    const h = cv.clientHeight || innerHeight || 1;
     if (w !== lastW || h !== lastH) {
       lastW = w;
       lastH = h;
@@ -678,6 +694,9 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     camera.lookAt(_look);
 
     dustMat.uniforms.uCamY.value = camY;
+    // The solitary crest sweeps relative to the camera, so it needs to know
+    // where the camera is.
+    shared.uCamY.value = camY;
 
     // ---- billboard ----------------------------------------------------------
     // Yaw only. Rotating on any other axis would tip the beam off vertical.

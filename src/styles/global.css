@@ -16,10 +16,10 @@
 @theme {
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Brutalist / technical stack. Display carries the structural masks; mono
-     carries every piece of metadata, label and data pill. There is no third
-     voice, and deliberately no serif. */
-  --font-display: var(--font-display), "Arial Narrow", "Helvetica Neue", sans-serif;
+  /* Elegant serif + technical mono. Display carries every headline and the
+     greeting; mono carries metadata, labels and HUD. The brutalist grotesk it
+     replaces was chosen for a typographic mask that no longer exists. */
+  --font-display: var(--font-display), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -62,15 +62,18 @@
     z-index: 1;
   }
 
-  /* Structural display type. Tight tracking and a hard 0.85 leading so stacked
-     lines lock into a block — the mask wants a solid shape to cut through, not
-     an airy paragraph. */
+  /* Elegant display type. Light weight, generous leading and a whisper of
+     positive tracking — the opposite of the old mask settings (700 weight,
+     0.85 leading, negative tracking, uppercase), which existed to lock stacked
+     lines into a solid block for a stencil to cut through. A high-contrast
+     Garamond needs air, and uppercase would destroy the lowercase shapes that
+     carry its character. */
   .display {
     font-family: var(--font-display);
-    font-weight: 700;
-    line-height: 0.85;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
+    font-weight: 300;
+    line-height: 1.06;
+    letter-spacing: 0.005em;
+    font-feature-settings: "liga" 1, "kern" 1;
   }
 
   /* Dense HUD metadata: 10px mono, wide tracking, caps. */

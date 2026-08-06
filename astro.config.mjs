@@ -20,25 +20,26 @@ export default defineConfig({
 
   fonts: [
     {
-      // Space Grotesk — the structural display face. Grotesk skeleton with cut
-      // terminals and a squared bowl: it holds up at the enormous sizes a
-      // typographic mask needs, where a humanist face turns to mush.
+      // Cormorant Garamond — the elegant display face. A Garamond revival with
+      // high stroke contrast, small counters and long, delicate serifs: it
+      // reads as chic and slightly naive at large sizes, which is the opposite
+      // of the Space Grotesk it replaces (that was chosen for a brutalist
+      // typographic mask that no longer exists).
       //
-      // Clash Display was the alternative you named. It is Fontshare, not
-      // Google, so it needs a licence and local .woff2 files rather than a
-      // provider — say the word and I will switch this entry to
-      // provider: 'local' with the files in src/assets/fonts/.
+      // Static weights rather than a variable range: Cormorant Garamond ships
+      // as discrete instances on Google Fonts, and asking for a range silently
+      // falls back to a single weight.
       provider: fontProviders.google(),
-      name: 'Space Grotesk',
+      name: 'Cormorant Garamond',
       cssVariable: '--font-display',
-      weights: ['300 700'], // variable range, single file
-      styles: ['normal'],
+      weights: ['300', '400', '500', '600'],
+      styles: ['normal', 'italic'],
       // latin-ext is NON-NEGOTIABLE: g-breve, s-cedilla and dotted-I live in
       // Latin Extended-A, not in `latin`. Without it "Altuğ" renders the ğ in
       // a fallback face mid-word.
       subsets: ['latin', 'latin-ext'],
       display: 'swap',
-      fallbacks: ['Arial Narrow', 'Helvetica Neue', 'sans-serif'],
+      fallbacks: ['Georgia', 'Times New Roman', 'serif'],
       optimizedFallbacks: true,
     },
     {

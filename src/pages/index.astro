@@ -9,11 +9,41 @@ import { TRACK_VH } from '../lib/stops';
       has to be long enough to contain them. */}
   <div class="scroll-track" style={`height:${TRACK_VH * 100}vh`} aria-hidden="true"></div>
 
-  <section class="hero" data-hero>
-    <h1 class="hero__title display" data-greeting>Welcome</h1>
-    <p class="hero__sub">Scroll down to navigate in my design galaxy.</p>
-    <p class="hud hero__hint" data-hero-hint>scroll</p>
+  {/* Hero and About are in normal document flow — they scroll away with the
+      page. Only the fixed layer below (subtitle, stop panels, white-out card)
+      is pinned. */}
+  <section class="hero">
+    <h1 class="hero__title display" data-greeting>Good Evening.</h1>
   </section>
+
+  <section class="about">
+    <p class="hud about__label">About</p>
+    <div class="about__body display">
+      <p>
+        I am an industrial design and engineering student at Özyeğin University,
+        working where the drawing has to survive contact with a manufacturing
+        process.
+      </p>
+      <p>
+        My work sits between form and structure — brewing equipment, composite
+        bodywork, things that are held and things that are driven. I care about
+        the decisions that do not show: wall thickness, draft, the tolerance
+        that makes an assembly feel deliberate instead of merely tight.
+      </p>
+      <p>
+        Below are two of them. Keep scrolling.
+      </p>
+    </div>
+  </section>
+
+  {/* Pinned to the bottom of the viewport, cleared the moment scrolling starts. */}
+  <p class="hero__sub" data-hero-sub>Scroll down to navigate in my design galaxy.</p>
+
+  {/* THE THRESHOLD CARD. Lives only inside the pure-white plateau. Pure black
+      on #FFFFFF, which is the one moment on this site that inverts. */}
+  <div class="threshold" data-threshold aria-hidden="true">
+    <p class="threshold__word display">Welcome.</p>
+  </div>
 
   {/* Inline and un-bundled on purpose. The greeting depends on the visitor's
       local clock, which the server cannot know — rendering a guess and
@@ -28,7 +58,7 @@ import { TRACK_VH } from '../lib/stops';
       var h = new Date().getHours();
       var part =
         h < 5 ? 'Night' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
-      el.textContent = 'Welcome, Good ' + part;
+      el.textContent = 'Good ' + part + '.';
     };
     window.__setGreeting();
   </script>
@@ -39,11 +69,27 @@ import { TRACK_VH } from '../lib/stops';
     <p class="hud stop__index">01 — Stop</p>
     <h2 class="stop__title display">Aequa</h2>
     <dl class="stop__meta hud">
-      <div><dt>Type</dt><dd>Pour-over brewer</dd></div>
-      <div><dt>Materials</dt><dd>Borosilicate · anodised aluminium</dd></div>
-      <div><dt>Year</dt><dd>2025</dd></div>
+      <div><dt>Type</dt><dd>Modular outdoor coffee &amp; tea brewer</dd></div>
+      <div><dt>System</dt><dd>Stacked components · twist-lock</dd></div>
+      <div><dt>Materials</dt><dd>Matte ceramic · frosted glass</dd></div>
     </dl>
     <button class="stop__cta hud" type="button" data-stop-cta="aequa">
+      <span>View details</span>
+      <span class="stop__rule" aria-hidden="true"></span>
+    </button>
+  </aside>
+
+  {/* SECOND STOP — SHIFU. Mirrored to the opposite side so the two showcases
+      do not read as the same slide twice. */}
+  <aside class="stop stop--left" data-stop="shifu" aria-hidden="true">
+    <p class="hud stop__index">02 — Stop</p>
+    <h2 class="stop__title display">Shifu 26</h2>
+    <dl class="stop__meta hud">
+      <div><dt>Team</dt><dd>Ozu Racing</dd></div>
+      <div><dt>Sub-team</dt><dd>Composites &amp; Aerodynamics</dd></div>
+      <div><dt>Scope</dt><dd>Carbon bodywork · steel chassis</dd></div>
+    </dl>
+    <button class="stop__cta hud" type="button" data-stop-cta="shifu">
       <span>View details</span>
       <span class="stop__rule" aria-hidden="true"></span>
     </button>
@@ -54,18 +100,14 @@ import { TRACK_VH } from '../lib/stops';
 </Base>
 
 <style>
+  /* In flow, not fixed: the greeting scrolls up and away with the document. */
   .hero {
-    position: fixed;
-    inset: 0;
+    min-height: 100vh;
     display: grid;
     place-content: center;
     justify-items: center;
-    gap: clamp(1rem, 3vh, 1.75rem);
-    pointer-events: none;
-    will-change: opacity, transform;
+    padding: 0 clamp(1.25rem, 5vw, 4rem);
   }
-  /* The hint keeps its distance; the greeting and subtitle read as one block. */
-  .hero__hint { margin-top: clamp(1.25rem, 4vh, 2.5rem); }
 
   /* The beam is blown out at frame centre, so white type laid straight over it
      loses its counters. A narrow scrim — only as tall as the line itself —
@@ -73,14 +115,16 @@ import { TRACK_VH } from '../lib/stops';
   .hero__title {
     position: relative;
     margin: 0;
-    font-size: clamp(1.75rem, 5.2vw, 4.25rem);
-    letter-spacing: 0.02em;
+    font-size: clamp(2.25rem, 7vw, 6rem);
+    font-weight: 300;
+    font-style: italic;
+    letter-spacing: 0.01em;
     text-align: center;
-    padding: 0.55em clamp(1rem, 6vw, 5rem);
+    padding: 0.4em clamp(1rem, 6vw, 5rem);
     color: #fff;
     text-shadow:
-      0 0 22px rgba(120, 220, 255, 0.55),
-      0 0 60px rgba(138, 60, 255, 0.35);
+      0 0 26px rgba(0, 0, 0, 0.85),
+      0 0 70px rgba(0, 0, 0, 0.6);
   }
   .hero__title::before {
     content: "";
@@ -90,56 +134,95 @@ import { TRACK_VH } from '../lib/stops';
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(0, 0, 0, 0.62) 22%,
-      rgba(0, 0, 0, 0.75) 50%,
-      rgba(0, 0, 0, 0.62) 78%,
+      rgba(0, 0, 0, 0.6) 22%,
+      rgba(0, 0, 0, 0.72) 50%,
+      rgba(0, 0, 0, 0.6) 78%,
       transparent 100%
     );
-    filter: blur(6px);
+    filter: blur(10px);
   }
 
-  /* The subtitle crosses the beam at its brightest, and unlike the title it is
-     small enough that a blown-out core eats whole words. Same scrim device,
-     tightened to the line and blurred harder so no edge is visible against the
-     void on either side. */
-  .hero__sub {
-    position: relative;
-    margin: 0;
-    max-width: 32ch;
-    text-align: center;
-    text-wrap: balance;
-    font-family: var(--font-mono);
-    font-size: clamp(0.75rem, 1.15vw, 0.9rem);
-    letter-spacing: 0.06em;
+  /* ---- about ------------------------------------------------------------- */
+
+  .about {
+    min-height: 100vh;
+    display: grid;
+    align-content: center;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    /* Held to one side so the beam keeps the centre of frame to itself. */
+    max-width: min(52ch, 46vw);
+    margin-inline-start: clamp(1.5rem, 9vw, 10rem);
+    padding: 12vh 0;
+  }
+  .about__label { color: color-mix(in oklab, var(--fg) 42%, transparent); }
+  .about__body {
+    display: grid;
+    gap: 1.1em;
+    font-size: clamp(1.05rem, 1.7vw, 1.6rem);
+    font-weight: 300;
     line-height: 1.5;
-    padding: 0.75em clamp(1rem, 4vw, 2.75rem);
-    color: color-mix(in oklab, var(--fg) 82%, transparent);
-    text-shadow: 0 0 16px rgba(0, 0, 0, 0.9), 0 0 34px rgba(0, 0, 0, 0.7);
+    color: color-mix(in oklab, var(--fg) 92%, transparent);
+    text-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
   }
-  .hero__sub::before {
-    content: "";
-    position: absolute;
+  .about__body p { margin: 0; }
+
+  @media (max-width: 860px) {
+    .about {
+      max-width: none;
+      margin-inline: clamp(1.25rem, 6vw, 3rem);
+    }
+  }
+
+  /* ---- threshold card ---------------------------------------------------- */
+
+  .threshold {
+    position: fixed;
     inset: 0;
-    z-index: -1;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(0, 0, 0, 0.55) 26%,
-      rgba(0, 0, 0, 0.7) 50%,
-      rgba(0, 0, 0, 0.55) 74%,
-      transparent 100%
-    );
-    filter: blur(8px);
+    display: grid;
+    place-content: center;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 2;
+  }
+  .threshold__word {
+    margin: 0;
+    font-size: clamp(2.5rem, 9vw, 8rem);
+    font-weight: 300;
+    font-style: italic;
+    letter-spacing: 0.01em;
+    /* Near-black rather than pure #000: on a 255 field a hair of lift keeps
+       the serif's thin strokes from aliasing into hard stair-steps. */
+    color: #0a0a0c;
   }
 
-  .hero__hint {
-    color: color-mix(in oklab, var(--fg) 55%, transparent);
-    animation: hint 2.6s var(--ease) infinite;
+  /* Pinned near the floor of the viewport, one line, never wrapping. Its
+     opacity is driven from the scroll position in JS, not by a transition —
+     it must track the scroll rather than lag behind it. */
+  .hero__sub {
+    position: fixed;
+    left: 50%;
+    bottom: clamp(1.75rem, 5vh, 3.25rem);
+    transform: translateX(-50%);
+    margin: 0;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: clamp(0.68rem, 1vw, 0.82rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.7em 1.4em;
+    color: color-mix(in oklab, var(--fg) 78%, transparent);
+    text-shadow: 0 0 16px rgba(0, 0, 0, 0.9), 0 0 34px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+    z-index: 1;
   }
 
-  @keyframes hint {
-    0%, 100% { opacity: 0.35; transform: translateY(0); }
-    50%      { opacity: 0.9;  transform: translateY(3px); }
+  /* On a narrow viewport the single line would overflow, and the brief is
+     explicit that it stays one line — so it shrinks rather than wraps. */
+  @media (max-width: 560px) {
+    .hero__sub {
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+    }
   }
 
   /* ---- project stop overlay ---------------------------------------------- */
@@ -161,6 +244,13 @@ import { TRACK_VH } from '../lib/stops';
     text-align: right;
     justify-items: end;
   }
+  .stop--left {
+    left: clamp(1.5rem, 6vw, 6rem);
+    text-align: left;
+    justify-items: start;
+  }
+  .stop--left .stop__cta { justify-items: start; }
+  .stop--left .stop__rule { transform-origin: left; }
 
   .stop__index { color: color-mix(in oklab, var(--fg) 45%, transparent); }
 
@@ -249,16 +339,21 @@ import { TRACK_VH } from '../lib/stops';
   import { initNebula } from '../scenes/nebula';
   import { initStarfield } from '../scenes/starfield';
   import { initAequaStop } from '../scenes/aequa-stop';
+  import { initShifuStop } from '../scenes/shifu-stop';
   import { onFrame, view } from '../lib/loop';
 
   const probe = document.querySelector<HTMLElement>('[data-probe]');
-  const hero = document.querySelector<HTMLElement>('[data-hero]');
-  const aequaPanel = document.querySelector<HTMLElement>('[data-stop="aequa"]');
+  const heroSub = document.querySelector<HTMLElement>('[data-hero-sub]');
+  const threshold = document.querySelector<HTMLElement>('[data-threshold]');
+  const panels: Array<[string, HTMLElement | null]> = [
+    ['aequa', document.querySelector<HTMLElement>('[data-stop="aequa"]')],
+    ['shifu', document.querySelector<HTMLElement>('[data-stop="shifu"]')],
+  ];
 
   // Null until the first frame decides, so the very first evaluation always
   // writes both aria-hidden and inert rather than short-circuiting.
-  let aequaOn: boolean | null = null;
-  if (aequaPanel) (aequaPanel as any).inert = true;
+  const panelOn: Record<string, boolean | null> = { aequa: null, shifu: null };
+  for (const [, el] of panels) if (el) (el as any).inert = true;
 
   const boot = async () => {
     const api = (window as any).__scene;
@@ -280,38 +375,69 @@ import { TRACK_VH } from '../lib/stops';
       const aequa = initAequaStop(api, beam);
       (window as any).__aequaStop = aequa;
 
-      if (probe) probe.textContent = 'beam · live · stop 01 armed';
+      // SHIFU loads a 539KB model, so it must not block the rest of the scene
+      // coming up. It arms itself whenever it lands; the stop is 7.4vh down the
+      // track and nothing before that depends on it.
+      initShifuStop(api, beam)
+        .then((shifu) => {
+          (window as any).__shifuStop = shifu;
+          if (probe) {
+            probe.textContent =
+              `beam · ${shifu.info.particles.toLocaleString()} carbon points · ` +
+              `${shifu.info.solidTris.toLocaleString()} solid tris`;
+          }
+        })
+        .catch((err) => {
+          if (probe) probe.textContent = 'stop 02 · model failed — see console';
+          console.error('[shifu]', err);
+        });
+
+      if (probe) probe.textContent = 'beam · live · loading shifu';
 
       onFrame(() => {
-        // Hero belongs to the resting state only.
-        if (hero) {
-          const k = Math.min(1, view.progress / 0.08);
-          hero.style.opacity = String(1 - k);
-          hero.style.transform = `translate3d(0, ${-k * 40}px, 0)`;
+        const svh = view.scrollY / Math.max(1, view.vh);
+
+        // Subtitle: full at rest, gone by 0.15vh. Authored in viewport-heights
+        // to match the brief directly rather than in normalised progress,
+        // which would change meaning every time the track length changes.
+        if (heroSub) {
+          const k = Math.min(1, svh / 0.15);
+          heroSub.style.opacity = String(1 - k * k);
+        }
+
+        // "Welcome." belongs to the white plateau and nowhere else. Keyed to
+        // the dive rather than to scroll so it can never drift out of the
+        // white — it fades in over the last of the blow-out and is gone before
+        // the frame has any colour to compete with.
+        if (threshold) {
+          const d = beam.diveRef.value;
+          const k = Math.max(0, Math.min(1, (d - 0.82) / 0.16));
+          threshold.style.opacity = String(k * k * (3 - 2 * k));
         }
 
         // The scene is the single authority on stop presence — the panel reads
         // it rather than recomputing from scroll, so type and geometry can
         // never disagree about where the stop is.
-        if (aequaPanel) {
-          const f = beam.focusOf.aequa ?? 0;
-          // The stop's focus is already ~0.98 at the dive peak, and ~0.62 on
-          // the approach — so ungated the panel would fade in BEFORE the
-          // threshold, be wiped by the white-out, then fade in a second time.
-          // revealRef keeps it shut until the camera is coming back out.
+        for (const [id, el] of panels) {
+          if (!el) continue;
+          const f = beam.focusOf[id] ?? 0;
+          // The stop's focus is already high on the approach to the dive — so
+          // ungated the panel would fade in BEFORE the threshold, be wiped by
+          // the white-out, then fade in a second time. revealRef keeps it shut
+          // until the camera is coming back out.
           const eased = f * f * (3 - 2 * f) * beam.revealRef.value;
-          aequaPanel.style.opacity = String(eased);
-          aequaPanel.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
+          el.style.opacity = String(eased);
+          el.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
           // Tracked in JS, not read back off the attribute. Reading the
           // attribute meant the initial state (already aria-hidden in the
           // markup) matched on the first frame, the branch never ran, and
           // `inert` was never set — leaving an invisible panel in the tab
           // order until the first time the stop toggled.
           const on = eased > 0.5;
-          if (aequaOn !== on) {
-            aequaOn = on;
-            aequaPanel.setAttribute('aria-hidden', String(!on));
-            (aequaPanel as any).inert = !on;
+          if (panelOn[id] !== on) {
+            panelOn[id] = on;
+            el.setAttribute('aria-hidden', String(!on));
+            (el as any).inert = !on;
           }
         }
       });

@@ -53,8 +53,13 @@
       camera.position.set(0, 0, 12);
 
       const resize = () => {
-        const w = innerWidth || 1;
-        const h = innerHeight || 1;
+        // clientWidth, not innerWidth. innerWidth includes the classic
+        // scrollbar gutter, but the canvas lays out at 100% of the content box
+        // without it — so the drawing buffer was ~15px wider than the element
+        // and every frame rendered at a ~1% horizontal squash whenever a
+        // scrollbar was present, which on this site is always.
+        const w = cv.clientWidth || innerWidth || 1;
+        const h = cv.clientHeight || innerHeight || 1;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
@@ -79,10 +84,20 @@
         if (!gltfLoader) {
           const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
           const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js');
+          // Both codecs are wired, because both are in use: the original
+          // Blender exports ship KHR_draco_mesh_compression, and everything
+          // through the @gltf-transform/cli pipeline ships
+          // EXT_meshopt_compression. A loader missing either one fails at load
+          // with a bare "decoder must be called before loading compressed
+          // files" rather than degrading, so there is no silent fallback path.
+          const { MeshoptDecoder } = await import(
+            'three/examples/jsm/libs/meshopt_decoder.module.js'
+          );
           gltfLoader = new GLTFLoader();
           const draco = new DRACOLoader();
           draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
           gltfLoader.setDRACOLoader(draco);
+          gltfLoader.setMeshoptDecoder(MeshoptDecoder);
         }
         const gltf: any = await gltfLoader.loadAsync(url);
         let meshes = 0;

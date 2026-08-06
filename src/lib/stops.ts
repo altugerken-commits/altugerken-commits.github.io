@@ -24,8 +24,8 @@ export interface Stop {
 }
 
 export const STOPS: Stop[] = [
-  { id: 'aequa', at: 2.0, hold: 0.9, ramp: 0.6 },
-  { id: 'shifu', at: 4.0, hold: 0.9, ramp: 0.6 },
+  { id: 'aequa', at: 5.0, hold: 1.0, ramp: 0.7 },
+  { id: 'shifu', at: 7.4, hold: 1.0, ramp: 0.7 },
 ];
 
 /**
@@ -35,14 +35,19 @@ export const STOPS: Stop[] = [
  * closes onto the beam axis, passes through the core — where the frame blows
  * to white — and pulls back out into the AEQUA stop.
  *
- * `peak` is where the camera is dead centre. The window is deliberately
- * asymmetric-capable: entering slower than leaving reads as being pulled in
- * and then spat out.
+ * `peak` is where the camera is dead centre. `hold` is a plateau of full
+ * intensity centred on the peak — dive stays pinned at 1 across it, so the
+ * pure-white frame lasts long enough to carry the "Welcome." card rather than
+ * being an instant the eye barely registers.
+ *
+ * Pushed deep (2.6-4.1vh) to leave the whole first stretch of the track to the
+ * hero and the About section, which the visitor reads before the camera
+ * commits to the threshold.
  */
-export const DIVE = { start: 1.2, peak: 1.5, end: 1.7 };
+export const DIVE = { start: 2.6, peak: 3.3, hold: 0.55, end: 4.1 };
 
 /** Total document track. Scrollable range is this minus one viewport. */
-export const TRACK_VH = 7;
+export const TRACK_VH = 10;
 
 /** World units of descent bought per viewport-height of effective scroll. */
 export const RATE = 62;
@@ -105,7 +110,10 @@ export function stopDepth(stop: Stop): number {
  */
 export function diveAt(s: number): number {
   if (s <= DIVE.start || s >= DIVE.end) return 0;
+  const half = DIVE.hold / 2;
+  // Flat top across the hold window: this is what makes the white-out last.
+  if (s >= DIVE.peak - half && s <= DIVE.peak + half) return 1;
   return s < DIVE.peak
-    ? smoothstep(DIVE.start, DIVE.peak, s)
-    : 1 - smoothstep(DIVE.peak, DIVE.end, s);
+    ? smoothstep(DIVE.start, DIVE.peak - half, s)
+    : 1 - smoothstep(DIVE.peak + half, DIVE.end, s);
 }

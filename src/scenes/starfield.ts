@@ -161,9 +161,13 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     pos[i * 3 + 2] = z;
 
     // Heavily skewed: a few stars carry most of the light, the rest are dust.
-    const t = Math.pow(Math.random(), 3.6);
-    size[i] = 0.5 + t * 1.15;
-    bright[i] = 0.022 + t * 0.14;
+    // Brighter across the board than the "barely perceptible" tuning: the
+    // brief is now a vivid galaxy with distinct stars. The skew stays heavy so
+    // it still reads as a field with a few bright anchors rather than an even
+    // dusting of identical dots.
+    const t = Math.pow(Math.random(), 3.2);
+    size[i] = 0.6 + t * 1.8;
+    bright[i] = 0.06 + t * 0.42;
     seed[i] = Math.random();
 
     // Bias the field toward the cyan end — violet is the accent, as it is in
@@ -188,8 +192,8 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     uPixelRatio: { value: Math.min(devicePixelRatio, 2) },
     uSize: { value: 1.35 },
     uParallax: { value: new THREE.Vector3() },
-    // The subtlety dial. Everything else is shape; this is the volume knob.
-    uOpacity: { value: 0.42 },
+    // The volume knob for the whole field.
+    uOpacity: { value: 0.85 },
   };
 
   const material = new THREE.ShaderMaterial({

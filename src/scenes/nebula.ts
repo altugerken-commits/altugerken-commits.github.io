@@ -36,6 +36,10 @@ const FRAG = /* glsl */ `
   uniform vec3  uPurple;
   uniform vec3  uPink;
   uniform vec3  uOrange;
+  uniform vec3  uYellow;
+  uniform vec3  uPlanetDir;
+  uniform float uPlanetR;
+  uniform vec3  uPlanetRim;
 
   varying vec3 vDir;
 
@@ -79,20 +83,50 @@ const FRAG = /* glsl */ `
     float density = fbm(p);
     float hue = fbm(p * 0.63 + vec3(11.3, 4.7, 19.1));
 
-    // Most of the sky must be empty. Without this the layer becomes an even
-    // wash, which reads as a lifted black point rather than as cloud.
-    float cloud = smoothstep(0.44, 0.86, density);
+    // Wider than it was. The old 0.44-0.86 window left most of the sky empty,
+    // which is what "too subtle" meant in practice — the colour existed but
+    // almost nowhere. Opening the low end lets the cloud actually cover sky.
+    float cloud = smoothstep(0.30, 0.78, density);
+    // A brighter core inside the densest cloud gives the galaxy somewhere to
+    // glow rather than reading as flat tinted fog.
+    float core = smoothstep(0.62, 0.92, density);
 
-    vec3 col = mix(uPurple, uPink, smoothstep(0.35, 0.75, hue));
-    // Orange is the accent and stays rare — it is the one hue here that can
-    // fight the beam's cyan if it spreads.
-    col = mix(col, uOrange, smoothstep(0.68, 0.95, hue) * 0.55);
+    // Four-stop ramp across the vivid palette.
+    vec3 col = mix(uPurple, uPink, smoothstep(0.28, 0.62, hue));
+    col = mix(col, uOrange, smoothstep(0.58, 0.86, hue));
+    col = mix(col, uYellow, smoothstep(0.82, 0.98, hue) * 0.8);
 
-    // Thin the band toward the poles so it drifts rather than shelling the
+    float amt = cloud + core * 1.9;
+
+    // ---- cosmic dust --------------------------------------------------------
+    // Fine high-frequency filaments that SUBTRACT, carving dark lanes through
+    // the cloud. Real nebulae read as dust in front of light, not as more
+    // light — and because this layer blends additively, multiplying down is
+    // the only way to get a dark structure at all.
+    float dust = fbm(p * 3.7 + vec3(31.0, 7.0, 3.0));
+    amt *= 1.0 - smoothstep(0.42, 0.78, dust) * 0.75;
+
+    // Thin toward the poles so it drifts as a band rather than shelling the
     // camera evenly in every direction.
-    float band = 1.0 - abs(vDir.y) * 0.55;
+    amt *= 1.0 - abs(vDir.y) * 0.5;
 
-    gl_FragColor = vec4(col * cloud * band * uIntensity, 1.0);
+    // ---- planet silhouette --------------------------------------------------
+    // Carved out of the cloud rather than drawn on top: this layer is additive,
+    // so nothing here can darken the frame directly. Multiplying the cloud down
+    // to nothing inside the disc leaves a true void in the shape of a planet,
+    // and a thin terminator rim is added back to imply a lit limb.
+    float pd = distance(normalize(vDir), normalize(uPlanetDir));
+    float disc = 1.0 - smoothstep(uPlanetR * 0.97, uPlanetR, pd);
+    amt *= 1.0 - disc * 0.97;
+
+    float rim = smoothstep(uPlanetR * 1.06, uPlanetR, pd)
+              * (1.0 - smoothstep(uPlanetR, uPlanetR * 0.955, pd));
+    // Rim only on the side facing the beam axis, so the light has a source.
+    float lit = clamp(0.5 + 0.5 * dot(normalize(vDir - uPlanetDir), vec3(0.6, 0.5, 0.0)), 0.0, 1.0);
+
+    vec3 outCol = col * amt * uIntensity + uPlanetRim * rim * lit * 0.5;
+
+    gl_FragColor = vec4(outCol, 1.0);
   }
 `;
 
@@ -108,15 +142,22 @@ export function initNebula(api: any, beam: any): NebulaHandle {
 
   const uniforms = {
     uTime: beam?.uniforms?.shared?.uTime ?? { value: 0 },
-    // The subtlety dial for this layer. Measured, not guessed: 0.16 put a
-    // mean delta of 18/255 across ~45% of the frame, which is a visible violet
-    // wash rather than "barely perceptible". For scale the starfield sits at
-    // mean 11 across 0.17% of frame.
-    uIntensity: { value: 0.055 },
+    // Brief changed from "barely perceptible" to a vivid, eye-catching galaxy,
+    // so this is deliberately an order of magnitude above the 0.055 it was
+    // tuned to. The constraint that survives is the bloom threshold: the
+    // galaxy must still sit under it, or UnrealBloomPass lifts the whole sky
+    // into a haze that eats the beam.
+    uIntensity: { value: 0.5 },
     uOffset: { value: new THREE.Vector3() },
-    uPurple: { value: new THREE.Color(0x6a3ad6) },
-    uPink: { value: new THREE.Color(0xff4fa3) },
-    uOrange: { value: new THREE.Color(0xff8a3d) },
+    uPurple: { value: new THREE.Color(0x7b3ff2) },
+    uPink: { value: new THREE.Color(0xff3d9a) },
+    uOrange: { value: new THREE.Color(0xff7a2f) },
+    uYellow: { value: new THREE.Color(0xffc861) },
+    // Off to one side and below the horizon of travel, so it is found rather
+    // than presented.
+    uPlanetDir: { value: new THREE.Vector3(-0.62, -0.2, -0.76).normalize() },
+    uPlanetR: { value: 0.2 },
+    uPlanetRim: { value: new THREE.Color(0xffb37a) },
   };
 
   const geo = new THREE.SphereGeometry(RADIUS, 32, 20);
