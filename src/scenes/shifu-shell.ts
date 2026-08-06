@@ -24,7 +24,14 @@ interface SceneAPI {
   camera: any;
   renderer: any;
   pointer: { x: number; y: number };
-  view: { progress: number; scrollY: number; vh: number };
+  view: {
+    progress: number;
+    scrollY: number;
+    vh: number;
+    velocity: number;
+    flow: number;
+    energy: number;
+  };
   loadGLB: (url: string) => Promise<any>;
   onTick: (fn: (t: number, dt: number) => void) => () => void;
   setRenderOverride: (fn: (t: number, dt: number) => void) => () => void;
@@ -59,9 +66,12 @@ export const params = {
   pointerPush: 0.085, // NDC
 
   // ---- framing -----------------------------------------------------------
-  // Object width / viewport width. The word spans ~86%, so at rest the S and
-  // the U stay empty — deliberate. The dolly pushes the shell through them.
-  viewportFill: 0.55,
+  // Object width / viewport width. Set to 0.50 rather than 0.55 because the
+  // measured silhouette includes the additive particle halo and the 13° pitch,
+  // which together run ~5pt over the requested figure — 0.50 lands on a true
+  // 55% visual dominance. The word spans ~86%, so at rest the S and the U stay
+  // empty; that is deliberate, and the dolly pushes the shell through them.
+  viewportFill: 0.5,
   pitchDeg: 13,
   dollySpan: 4.6,
   dollyDamping: 3.2,
@@ -78,6 +88,20 @@ export const params = {
   maskText: 'SHIFU',
   maskFill: 0.9, // fraction of viewport width the word spans
   maskTracking: '0.02em',
+
+  // ---- controlled violence -------------------------------------------------
+  // All of these are multiplied by the energy envelope, so they describe the
+  // PEAK only. At rest the shader takes a bit-exact early-out and none of it
+  // executes. Tuned for "genuinely violent" at a hard flick.
+  fxEnabled: true,
+  aberrRadial: 0.02, // lens character: offset grows from frame centre
+  aberrDirectional: 0.028, // smear along X, signed by scroll direction
+  glitchRate: 14, // decision slots per second
+  glitchChance: 0.85, // probability a slot fires, scaled by energy
+  glitchBands: 42, // horizontal slices the frame is cut into
+  glitchAmp: 0.1, // peak horizontal displacement, in UV
+  rowShiftChance: 0.5, // rarer full-frame RGB row tear
+  scanline: 0.1, // brightness comb during tears
 };
 
 const VERT = /* glsl */ `
@@ -139,15 +163,100 @@ const MASK_VERT = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
 `;
 
+// THE COMPOSITE — mask + chromatic aberration + glitch, in one pass.
+//
+// Option A ordering: the SCENE is torn, then multiplied by the mask. The mask
+// is sampled at the undisplaced vUv, never at the glitched coordinate, so the
+// letterforms stay razor-sharp no matter how violent the world behind them
+// gets. That contrast is the whole point — brutalist static type, chaos inside.
+//
+// Everything is gated on uEnergy, and the function early-outs to a single
+// texture fetch below the threshold. "Pristine at rest" is therefore a property
+// of the code path, not a hope that the maths converges to zero.
 const MASK_FRAG = /* glsl */ `
   uniform sampler2D uScene;
   uniform sampler2D uMask;
   uniform float uEnabled;
+
+  uniform float uEnergy;   // 0..1 asymmetric envelope
+  uniform float uFlow;     // -1..1 signed scroll direction
+  uniform float uTime;
+  uniform float uFx;       // master enable
+
+  uniform float uAberrRadial;
+  uniform float uAberrDirectional;
+  uniform float uGlitchRate;
+  uniform float uGlitchChance;
+  uniform float uGlitchBands;
+  uniform float uGlitchAmp;
+  uniform float uRowShiftChance;
+  uniform float uScanline;
+
   varying vec2 vUv;
+
+  float hash11(float p) {
+    p = fract(p * 0.1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
+  }
+  float hash21(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+
   void main() {
-    vec3 c = texture2D(uScene, vUv).rgb;
-    float m = mix(1.0, texture2D(uMask, vUv).a, uEnabled);
-    gl_FragColor = vec4(c * m, 1.0);
+    float mask = mix(1.0, texture2D(uMask, vUv).a, uEnabled);
+    float e = uEnergy * uFx;
+
+    // PRISTINE EARLY-OUT — one fetch, bit-identical to an un-effected frame.
+    if (e < 0.002) {
+      gl_FragColor = vec4(texture2D(uScene, vUv).rgb * mask, 1.0);
+      return;
+    }
+
+    vec2 uv = vUv;
+
+    // ---- band displacement -------------------------------------------------
+    // Time is quantised into slots and each slot is decided once, so a tear
+    // holds for a few frames instead of shimmering per-frame. A slot only fires
+    // if its hash falls under energy * chance: no energy, no glitch, ever.
+    float slot = floor(uTime * uGlitchRate);
+    float fired = step(hash11(slot), e * uGlitchChance);
+    if (fired > 0.5) {
+      float band = floor(uv.y * uGlitchBands);
+      float r = hash21(vec2(band, slot));
+      float active = step(0.62, r);              // only a minority of bands move
+      uv.x += active * sign(r - 0.5) * (r - 0.5) * uGlitchAmp * e;
+    }
+
+    // ---- chromatic aberration ----------------------------------------------
+    // Radial gives the lens character; directional smears along the same axis
+    // the dolly travels and leans the way you are scrolling.
+    vec2 off = (vUv - 0.5) * uAberrRadial * e
+             + vec2(uFlow, 0.0) * uAberrDirectional * e;
+
+    vec3 col = vec3(
+      texture2D(uScene, uv + off).r,
+      texture2D(uScene, uv).g,
+      texture2D(uScene, uv - off).b
+    );
+
+    // ---- rarer full-frame row tear -----------------------------------------
+    float rowSlot = floor(uTime * uGlitchRate * 0.5);
+    if (hash11(rowSlot + 7.3) < e * uRowShiftChance) {
+      float row = floor(uv.y * uGlitchBands * 0.5);
+      float s = (hash21(vec2(row, rowSlot)) - 0.5) * uGlitchAmp * 1.6 * e;
+      col.r = texture2D(uScene, uv + vec2(s, 0.0)).r;
+      col.b = texture2D(uScene, uv - vec2(s, 0.0)).b;
+    }
+
+    // ---- brightness comb during tears --------------------------------------
+    col *= 1.0 - uScanline * e * step(0.5, fract(uv.y * 220.0 + uTime * 8.0));
+
+    // Mask LAST, at the clean coordinate: the type never moves.
+    gl_FragColor = vec4(col * mask, 1.0);
   }
 `;
 
@@ -335,6 +444,18 @@ export async function initShifuShell(api: SceneAPI, url: string) {
     uScene: { value: rt.texture },
     uMask: { value: maskTex },
     uEnabled: { value: params.maskEnabled ? 1 : 0 },
+    uEnergy: { value: 0 },
+    uFlow: { value: 0 },
+    uTime: { value: 0 },
+    uFx: { value: params.fxEnabled ? 1 : 0 },
+    uAberrRadial: { value: params.aberrRadial },
+    uAberrDirectional: { value: params.aberrDirectional },
+    uGlitchRate: { value: params.glitchRate },
+    uGlitchChance: { value: params.glitchChance },
+    uGlitchBands: { value: params.glitchBands },
+    uGlitchAmp: { value: params.glitchAmp },
+    uRowShiftChance: { value: params.rowShiftChance },
+    uScanline: { value: params.scanline },
   };
   quadScene.add(
     new THREE.Mesh(
@@ -405,6 +526,21 @@ export async function initShifuShell(api: SceneAPI, url: string) {
       uniforms.uProgress.value = Math.min(1, elapsed / params.convergeSeconds);
       uniforms.uPointer.value.set(api.pointer.x, api.pointer.y);
     }
+
+    // The envelope is computed once per frame in lib/loop.ts, where scroll is
+    // owned. Everything here just reads it.
+    quadUniforms.uTime.value = t;
+    quadUniforms.uEnergy.value = api.view.energy;
+    quadUniforms.uFlow.value = api.view.flow;
+    quadUniforms.uFx.value = params.fxEnabled ? 1 : 0;
+    quadUniforms.uAberrRadial.value = params.aberrRadial;
+    quadUniforms.uAberrDirectional.value = params.aberrDirectional;
+    quadUniforms.uGlitchRate.value = params.glitchRate;
+    quadUniforms.uGlitchChance.value = params.glitchChance;
+    quadUniforms.uGlitchBands.value = params.glitchBands;
+    quadUniforms.uGlitchAmp.value = params.glitchAmp;
+    quadUniforms.uRowShiftChance.value = params.rowShiftChance;
+    quadUniforms.uScanline.value = params.scanline;
     const { y, z } = frame();
     const wanted = -params.dollySpan + api.view.progress * params.dollySpan * 2;
     dollyX += (wanted - dollyX) * (1 - Math.exp(-params.dollyDamping * dt));
@@ -443,6 +579,7 @@ export async function initShifuShell(api: SceneAPI, url: string) {
     drawMask,
     frame,
     renderMasked,
+    quadUniforms,   // exposed so the envelope can be driven by hand for testing
   };
   (window as any).__shifuScene = info;
   return info;
