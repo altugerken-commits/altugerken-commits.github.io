@@ -234,7 +234,11 @@ import { TRACK_VH } from '../lib/stops';
         // never disagree about where the stop is.
         if (aequaPanel) {
           const f = beam.focusOf.aequa ?? 0;
-          const eased = f * f * (3 - 2 * f);
+          // The stop's focus is already ~0.98 at the dive peak, and ~0.62 on
+          // the approach — so ungated the panel would fade in BEFORE the
+          // threshold, be wiped by the white-out, then fade in a second time.
+          // revealRef keeps it shut until the camera is coming back out.
+          const eased = f * f * (3 - 2 * f) * beam.revealRef.value;
           aequaPanel.style.opacity = String(eased);
           aequaPanel.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
           // Tracked in JS, not read back off the attribute. Reading the

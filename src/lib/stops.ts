@@ -28,6 +28,19 @@ export const STOPS: Stop[] = [
   { id: 'shifu', at: 4.0, hold: 0.9, ramp: 0.6 },
 ];
 
+/**
+ * THE WHITE-OUT DIVE.
+ *
+ * A threshold before the first stop: the camera leaves its parallel descent,
+ * closes onto the beam axis, passes through the core — where the frame blows
+ * to white — and pulls back out into the AEQUA stop.
+ *
+ * `peak` is where the camera is dead centre. The window is deliberately
+ * asymmetric-capable: entering slower than leaving reads as being pulled in
+ * and then spat out.
+ */
+export const DIVE = { start: 1.2, peak: 1.5, end: 1.7 };
+
 /** Total document track. Scrollable range is this minus one viewport. */
 export const TRACK_VH = 7;
 
@@ -82,4 +95,17 @@ export function focusAt(s: number, stop: Stop): number {
 /** World Y at the centre of a stop's frame. */
 export function stopDepth(stop: Stop): number {
   return descent(stop.at);
+}
+
+/**
+ * Dive intensity 0..1 at scroll position `s`. 0 outside the window, 1 exactly
+ * at the peak. Drives the Z plunge, the gaze rotation, the beam boost and the
+ * bloom blow-out together, so all four can never disagree about where the
+ * threshold is.
+ */
+export function diveAt(s: number): number {
+  if (s <= DIVE.start || s >= DIVE.end) return 0;
+  return s < DIVE.peak
+    ? smoothstep(DIVE.start, DIVE.peak, s)
+    : 1 - smoothstep(DIVE.peak, DIVE.end, s);
 }

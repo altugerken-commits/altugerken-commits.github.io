@@ -18,7 +18,7 @@
 // purpose: nothing here is lit, it *is* the light.
 
 import type { Vector2 } from 'three';
-import { STOPS, descent, focusAt } from '../lib/stops';
+import { STOPS, descent, focusAt, diveAt, DIVE } from '../lib/stops';
 
 interface StageApi {
   THREE: typeof import('three');
@@ -42,6 +42,22 @@ const HAZE_WIDTH = 16.0;
 
 /** Resting distance from the axis. */
 const CAM_Z = 12;
+/** How far below itself the camera aims at rest. */
+const LOOK_AHEAD = 7;
+
+// ---- white-out dive --------------------------------------------------------
+/** Closest approach to the axis. Must stay > 0: see the camZ clamp. */
+const DIVE_Z = 0.3;
+/** Beam multiplier at the peak. Tuned against a full-framebuffer read. */
+const DIVE_BOOST = 120;
+/** Added tone-mapping exposure at the peak. */
+const DIVE_EXPOSURE = 7;
+
+const BLOOM_STRENGTH = 0.85;
+const BLOOM_RADIUS = 0.28;
+const BLOOM_THRESHOLD = 0.8;
+const DIVE_BLOOM_STRENGTH = 3.2;
+const DIVE_BLOOM_RADIUS = 0.9;
 
 const DUST_COUNT = 2600;
 /** Dust wraps within this Y window around the camera, so it is always present. */
@@ -84,6 +100,7 @@ const BEAM_FRAG = /* glsl */ `
   uniform float uSat;
   uniform float uSplinter;
   uniform float uSpread;
+  uniform float uBoost;
   uniform vec3  uColorA;
   uniform vec3  uColorB;
 
@@ -158,7 +175,7 @@ const BEAM_FRAG = /* glsl */ `
     // bleached bloom is what turns a cyan/violet beam into a grey searchlight.
     col = mix(col, vec3(1.0), clamp(core * uWhiteMix, 0.0, 1.0));
 
-    float a = e * n * uIntensity * (0.72 + uEnergy * 0.75);
+    float a = e * n * uIntensity * (0.72 + uEnergy * 0.75) * uBoost;
 
     // Feather both ends so the column never shows a hard terminator.
     a *= smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
@@ -227,6 +244,10 @@ export interface BeamHandle {
   step: (t: number, dt: number) => void;
   /** Live 0..1 presence per stop id, written once per frame. */
   focusOf: Record<string, number>;
+  /** Live 0..1 white-out dive intensity. */
+  diveRef: { value: number };
+  /** Live 0..1 gate for stop typography; shut until a dive has been crossed. */
+  revealRef: { value: number };
   uniforms: { rampFreq: { value: number }; rampDrift: { value: number }; shared: any };
   dispose: () => void;
 }
@@ -249,6 +270,10 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // Stop reaction, shared so the core and the haze fray together.
     uSplinter: { value: 0 },
     uSpread: { value: 0 },
+    // Dive blow-out. Multiplies the whole beam so being inside the core
+    // overwhelms the frame from the geometry outward, rather than the white
+    // being painted on by post alone.
+    uBoost: { value: 1 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
   };
@@ -389,9 +414,9 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   // beam. 0.28 keeps the bleed inside roughly a fifth of the viewport.
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(innerWidth, innerHeight),
-    0.85, // strength
-    0.28, // radius
-    0.80, // threshold
+    BLOOM_STRENGTH,
+    BLOOM_RADIUS,
+    BLOOM_THRESHOLD,
   );
   composer.addPass(bloom);
   // OutputPass applies the renderer's ACES tone map + sRGB at the very end,
@@ -409,6 +434,17 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   const focusOf: Record<string, number> = Object.fromEntries(
     STOPS.map((s) => [s.id, 0]),
   );
+
+  // Live dive intensity, read by the DOM so the overlays can clear out of the
+  // white-out instead of floating on top of it. A ref rather than a bare number
+  // so consumers hold the live value, not a snapshot.
+  const diveRef = { value: 0 };
+
+  // How much stop UI may show. Zero on the approach to a dive and through the
+  // white-out, rising only on the way out — so a stop's typography is revealed
+  // BY crossing the threshold rather than being visible before it, wiped, and
+  // shown again. Outside a dive window this is simply 1.
+  const revealRef = { value: 1 };
 
   const _dir = new THREE.Vector3();
   const _look = new THREE.Vector3();
@@ -445,22 +481,56 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
       if (f > focus) focus = f;
     }
 
+    // ---- the white-out dive -------------------------------------------------
+    const dv = diveAt(s);
+    diveRef.value = dv;
+    // Before the peak the gate is shut outright; after it, (1 - dive) opens it
+    // as the camera withdraws. Both terms are 0 exactly at the peak, so there
+    // is no discontinuity where they meet.
+    revealRef.value = s >= DIVE.peak ? 1 - dv : 0;
+
     camY = damp(camY, -descent(s), 6, dt);
+
     // Pull in toward the axis at a stop: the descent has plateaued, so closing
     // distance is what keeps the moment from reading as the page having hung.
-    camZ = damp(camZ, CAM_Z - focus * 4.6, 4, dt);
+    // The dive overrides it entirely and takes the camera into the core.
+    const restZ = CAM_Z - focus * 4.6;
+    // Never reach exactly 0. At the axis the view direction and the billboard
+    // yaw both degenerate to a zero vector and the frame NaNs out.
+    const zTarget = restZ * (1 - dv) + DIVE_Z * dv;
+    camZ = damp(camZ, Math.max(DIVE_Z, zTarget), 7, dt);
 
     // The beam frays and widens where the journey pauses.
     shared.uSplinter.value = damp(shared.uSplinter.value, focus * 0.34, 5, dt);
     shared.uSpread.value = damp(shared.uSpread.value, focus * 0.55, 5, dt);
 
-    const px = reduced ? 0 : api.pointer.x;
-    const py = reduced ? 0 : api.pointer.y;
+    // Blow-out. Ramped on dv^2 so the frame stays readable through most of the
+    // approach and only detonates in the last part of it.
+    shared.uBoost.value = 1 + dv * dv * DIVE_BOOST;
+    renderer.toneMappingExposure = 1 + dv * dv * DIVE_EXPOSURE;
+    bloom.strength = BLOOM_STRENGTH + dv * (DIVE_BLOOM_STRENGTH - BLOOM_STRENGTH);
+    bloom.radius = BLOOM_RADIUS + dv * (DIVE_BLOOM_RADIUS - BLOOM_RADIUS);
+    // Threshold to 0 means the bloom pass stops discriminating and lifts the
+    // entire frame, which is what turns a bright core into a full white field.
+    bloom.threshold = BLOOM_THRESHOLD * (1 - dv);
+
+    // Pointer sway is suppressed through the dive — at 0.3 units from the axis
+    // it would swing the camera through the beam rather than around it.
+    const sway = 1 - dv;
+    const px = (reduced ? 0 : api.pointer.x) * sway;
+    const py = (reduced ? 0 : api.pointer.y) * sway;
 
     camera.position.set(px * 1.4, camY + py * 0.9, camZ);
+
     // Aim slightly below the camera: the eye follows the beam downward into
     // where the journey is going.
-    _look.set(0, camY - 7, 0);
+    //
+    // The dive rotates that gaze horizontal. This is not decoration — it is
+    // what makes the blow-out possible. The beam is built from vertical
+    // billboards, so a camera looking DOWN the axis sees them edge-on and the
+    // frame goes dark exactly when it should go white. Levelling the gaze as
+    // Z closes puts the plane face-on, filling frame with core.
+    _look.set(0, camY - LOOK_AHEAD * (1 - dv), 0);
     camera.lookAt(_look);
 
     dustMat.uniforms.uCamY.value = camY;
@@ -497,6 +567,8 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     composer,
     step,
     focusOf,
+    diveRef,
+    revealRef,
     uniforms: { rampFreq, rampDrift, shared },
     dispose,
   };
