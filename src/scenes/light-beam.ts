@@ -103,6 +103,10 @@ const BEAM_FRAG = /* glsl */ `
   uniform float uSplinter;
   uniform float uSpread;
   uniform float uBoost;
+  uniform float uPumpDepth;
+  uniform float uPumpFreq;
+  uniform float uPumpSpeed;
+  uniform float uPumpSharp;
   uniform vec3  uColorA;
   uniform vec3  uColorB;
 
@@ -148,11 +152,35 @@ const BEAM_FRAG = /* glsl */ `
 
     // Travelling energy along the beam. Two octaves at different speeds so it
     // reads as charge moving through the column, not as a texture sliding.
+    //
+    // BOTH octaves must travel the same way as the pump. They used to run in
+    // opposite directions (-uTime on one, +uTime on the other), which read as
+    // undirected churn — fine when the beam was ambient, actively harmful now
+    // the beam is meant to point downward. Measured: the upward octave carries
+    // enough weight to capture the brightest row and drag the apparent flow
+    // against the pump.
     float n =
-      vnoise(vWorldY * 0.30 - uTime * 1.7) * 0.55 +
+      vnoise(vWorldY * 0.30 + uTime * 1.7) * 0.55 +
       vnoise(vWorldY * 1.55 + uTime * 3.3) * 0.28 +
       0.60;
     n = mix(1.0, n, uFlickerAmt);
+
+    // ---- directional pump ---------------------------------------------------
+    // A crest of brightness travelling DOWN the column, so the beam reads as a
+    // neon arrow rather than a static light.
+    //
+    // Direction is in the sign, and it is easy to get backwards. A point of
+    // constant phase satisfies vWorldY * freq + t * speed = k, so it sits at
+    // vWorldY = (k - t*speed) / freq — which decreases as t grows whenever
+    // freq and speed share a sign. World Y is up, so decreasing Y is downward
+    // travel. Both positive therefore pumps toward the floor, which is where
+    // the journey goes.
+    float pump = 0.5 + 0.5 * sin(vWorldY * uPumpFreq + uTime * uPumpSpeed);
+    // Sharpened so it reads as a discrete crest passing through, not a slow
+    // sinusoidal breathe over the whole beam.
+    pump = pow(pump, uPumpSharp);
+    // Never modulates to zero: the beam dims between crests, it does not blink.
+    float pumpMul = (1.0 - uPumpDepth) + uPumpDepth * pump;
 
     // World-space colour ramp, cyan <-> violet.
     //
@@ -177,7 +205,7 @@ const BEAM_FRAG = /* glsl */ `
     // bleached bloom is what turns a cyan/violet beam into a grey searchlight.
     col = mix(col, vec3(1.0), clamp(core * uWhiteMix, 0.0, 1.0));
 
-    float a = e * n * uIntensity * (0.72 + uEnergy * 0.75) * uBoost;
+    float a = e * n * pumpMul * uIntensity * (0.72 + uEnergy * 0.75) * uBoost;
 
     // Feather both ends so the column never shows a hard terminator.
     a *= smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
@@ -280,6 +308,14 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // overwhelms the frame from the geometry outward, rather than the white
     // being painted on by post alone.
     uBoost: { value: 1 },
+    // Downward pump. ~26 world-unit wavelength travelling roughly one
+    // wavelength every 2.2s — slow enough to read as guidance rather than
+    // strobing, fast enough to be unmistakably directional. Shallow under
+    // reduced-motion rather than off, so the beam still has a pulse.
+    uPumpDepth: { value: reduced ? 0.1 : 0.5 },
+    uPumpFreq: { value: (Math.PI * 2) / 26 },
+    uPumpSpeed: { value: reduced ? 0.6 : 2.8 },
+    uPumpSharp: { value: 2.6 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
   };

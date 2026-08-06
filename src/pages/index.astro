@@ -10,9 +10,28 @@ import { TRACK_VH } from '../lib/stops';
   <div class="scroll-track" style={`height:${TRACK_VH * 100}vh`} aria-hidden="true"></div>
 
   <section class="hero" data-hero>
-    <h1 class="hero__title display">Begin to Explore</h1>
+    <h1 class="hero__title display" data-greeting>Welcome</h1>
+    <p class="hero__sub">Scroll down to navigate in my design galaxy.</p>
     <p class="hud hero__hint" data-hero-hint>scroll</p>
   </section>
+
+  {/* Inline and un-bundled on purpose. The greeting depends on the visitor's
+      local clock, which the server cannot know — rendering a guess and
+      correcting it later would flash the wrong time of day. This runs during
+      parse, immediately after the element exists and before first paint, so
+      the only text ever painted is the correct one. The markup ships a bare
+      "Welcome" as the no-JS fallback. */}
+  <script is:inline>
+    window.__setGreeting = function () {
+      var el = document.querySelector('[data-greeting]');
+      if (!el) return;
+      var h = new Date().getHours();
+      var part =
+        h < 5 ? 'Night' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
+      el.textContent = 'Welcome, Good ' + part;
+    };
+    window.__setGreeting();
+  </script>
 
   {/* FIRST STOP — AEQUA. Sits opposite the object, which holds frame centre
       inside the beam. Hidden from AT and from tab order until it is present. */}
@@ -41,10 +60,12 @@ import { TRACK_VH } from '../lib/stops';
     display: grid;
     place-content: center;
     justify-items: center;
-    gap: clamp(2rem, 6vh, 4rem);
+    gap: clamp(1rem, 3vh, 1.75rem);
     pointer-events: none;
     will-change: opacity, transform;
   }
+  /* The hint keeps its distance; the greeting and subtitle read as one block. */
+  .hero__hint { margin-top: clamp(1.25rem, 4vh, 2.5rem); }
 
   /* The beam is blown out at frame centre, so white type laid straight over it
      loses its counters. A narrow scrim — only as tall as the line itself —
@@ -75,6 +96,40 @@ import { TRACK_VH } from '../lib/stops';
       transparent 100%
     );
     filter: blur(6px);
+  }
+
+  /* The subtitle crosses the beam at its brightest, and unlike the title it is
+     small enough that a blown-out core eats whole words. Same scrim device,
+     tightened to the line and blurred harder so no edge is visible against the
+     void on either side. */
+  .hero__sub {
+    position: relative;
+    margin: 0;
+    max-width: 32ch;
+    text-align: center;
+    text-wrap: balance;
+    font-family: var(--font-mono);
+    font-size: clamp(0.75rem, 1.15vw, 0.9rem);
+    letter-spacing: 0.06em;
+    line-height: 1.5;
+    padding: 0.75em clamp(1rem, 4vw, 2.75rem);
+    color: color-mix(in oklab, var(--fg) 82%, transparent);
+    text-shadow: 0 0 16px rgba(0, 0, 0, 0.9), 0 0 34px rgba(0, 0, 0, 0.7);
+  }
+  .hero__sub::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.55) 26%,
+      rgba(0, 0, 0, 0.7) 50%,
+      rgba(0, 0, 0, 0.55) 74%,
+      transparent 100%
+    );
+    filter: blur(8px);
   }
 
   .hero__hint {
@@ -191,6 +246,7 @@ import { TRACK_VH } from '../lib/stops';
 
 <script>
   import { initLightBeam } from '../scenes/light-beam';
+  import { initNebula } from '../scenes/nebula';
   import { initStarfield } from '../scenes/starfield';
   import { initAequaStop } from '../scenes/aequa-stop';
   import { onFrame, view } from '../lib/loop';
@@ -212,7 +268,12 @@ import { TRACK_VH } from '../lib/stops';
       const beam = await initLightBeam(api);
       (window as any).__beamScene = beam;
 
-      // Behind everything, including the beam's own haze.
+      // The permanent atmosphere, in draw order beneath everything. Neither of
+      // these belongs to the beam group, so the white-out kill cannot reach
+      // them — they are what the showcase is staged in.
+      const nebula = initNebula(api, beam);
+      (window as any).__nebula = nebula;
+
       const stars = initStarfield(api, beam);
       (window as any).__starfield = stars;
 
@@ -262,4 +323,9 @@ import { TRACK_VH } from '../lib/stops';
 
   document.addEventListener('stage:ready', boot);
   if ((window as any).__scene?.ready) boot();
+
+  // The inline greeting script runs at parse time and so does not re-run after
+  // a ClientRouter swap, which would leave a stale time of day on any internal
+  // navigation back to this page.
+  document.addEventListener('astro:after-swap', () => (window as any).__setGreeting?.());
 </script>
