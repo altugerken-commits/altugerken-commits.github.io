@@ -1,33 +1,43 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ ! -f \"${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs\" ] || node \"${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs\"",
-            "timeout": 5,
-            "statusMessage": "Checking UI changes"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ ! -f \"${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs\" ] || node \"${CLAUDE_PROJECT_DIR}/.claude/skills/impeccable/scripts/hook.mjs\"",
-            "timeout": 30,
-            "statusMessage": "Design deep pass"
-          }
-        ]
-      }
+  "permissions": {
+    "allow": [
+      "PowerShell(npx -y skills add mindrally/skills --skill framer-motion --agent claude-code)",
+      "PowerShell(uipro init --ai claude)",
+      "PowerShell(npm view uipro name version description dist.tarball 2>$null)",
+      "PowerShell(if \\(-not $?\\) { \"NOT_FOUND_ON_NPM\" })",
+      "PowerShell(npm search uipro --json --no-fund 2>$null)",
+      "PowerShell(npm view uipro-cli bin repository homepage version --json)",
+      "PowerShell(npm view ui-ux-pro-max-cli bin repository homepage version --json)",
+      "PowerShell(\"----\")",
+      "PowerShell(npx -y ui-ux-pro-max-cli init --ai claude)",
+      "PowerShell(git check-ignore -v .claude/skills/ui-ux-pro-max 2>$null)",
+      "PowerShell(\"---- new skill dirs ----\")",
+      "PowerShell(\"---- settings.local diff ----\")",
+      "PowerShell(npx skills add emilkowalski/skill)",
+      "PowerShell(Get-ChildItem .claude/skills | Select-Object Name, @{n='Type';e={if\\($_.LinkType\\){$_.LinkType}else{'dir'}}}, @{n='Target';e={$_.Target}} | Format-Table -AutoSize | Out-String -Width 200)",
+      "PowerShell($s='animate','animation-vocabulary','apple-design','emil-design-eng','find-animation-opportunities','improve-animations','pick-ui-library','prototype','review-animations'; foreach\\($n in $s\\){ $p=\".claude/skills/$n\"; $f=Get-ChildItem $p -Recurse -File -ErrorAction SilentlyContinue; $has=Test-Path \"$p/SKILL.md\"; \"{0,-30} SKILL.md={1,-5} files={2}\" -f $n,$has,$f.Count }; \"---- scripts outside markdown ----\"; Get-ChildItem .agents/skills -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'impeccable' -and $_.Extension -notin '.md','.json','.txt' } | Select-Object -ExpandProperty FullName)",
+      "PowerShell(npm view impeccable name version description bin --json 2>$null)",
+      "PowerShell(Copy-Item .claude/settings.local.json \"$env:TEMP\\\\settings.local.before.json\" -Force; npx impeccable install)",
+      "PowerShell($diff = Compare-Object \\(Get-Content \"$env:TEMP\\\\settings.local.before.json\"\\) \\(Get-Content .claude/settings.local.json\\); if \\($diff\\) { $diff | Format-Table -AutoSize | Out-String -Width 200 } else { \"settings.local.json UNCHANGED\" }; \"---- git status ----\"; git status --porcelain --untracked-files=all | Select-Object -First 20)",
+      "PowerShell(npx skills add Leonxlnx/taste-skill)",
+      "PowerShell($s='brandkit','industrial-brutalist-ui','gpt-taste','image-to-code','imagegen-frontend-mobile','imagegen-frontend-web','minimalist-ui','full-output-enforcement','redesign-existing-projects','high-end-visual-design','stitch-design-taste','design-taste-frontend','design-taste-frontend-v1'; foreach\\($n in $s\\){ $p=\".claude/skills/$n\"; $f=Get-ChildItem $p -Recurse -File -ErrorAction SilentlyContinue; $kb=[math]::Round\\(\\($f|Measure-Object Length -Sum\\).Sum/1KB,1\\); \"{0,-28} SKILL.md={1,-5} files={2,-3} {3} KB\" -f $n,\\(Test-Path \"$p/SKILL.md\"\\),$f.Count,$kb }; \"---- non-markdown payloads ----\"; foreach\\($n in $s\\){ Get-ChildItem \".claude/skills/$n\" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -notin '.md' } | Select-Object -ExpandProperty FullName })",
+      "PowerShell(Get-ChildItem src -Recurse -File | ForEach-Object { $_.FullName.Replace\\($PWD.Path+'\\\\',''\\) })",
+      "PowerShell(npm install -D @gltf-transform/cli 2>&1)",
+      "PowerShell(npx gltf-transform --version 2>&1)",
+      "PowerShell(npm audit --audit-level=high 2>&1)",
+      "PowerShell(\"=== CLI VERSION ===\")",
+      "PowerShell(\"=== AUDIT \\(high\\) ===\")",
+      "PowerShell(if \\(Test-Path .claude/launch.json\\) { Get-Content .claude/launch.json -Raw } else { \"NO launch.json\" }; \"---- scripts ----\"; \\(Get-Content package.json -Raw | ConvertFrom-Json\\).scripts | ConvertTo-Json -Compress)",
+      "PowerShell(npx astro check 2>&1)",
+      "PowerShell(\"=== DIFFSTAT \\(tracked\\) ===\")",
+      "PowerShell(\"=== branch ===\")",
+      "PowerShell(git add -A .claude/agents .claude/settings.local.json skills-lock.json package.json package-lock.json)",
+      "PowerShell(\"=== commit A ===\")"
     ]
   },
-  "description": "Impeccable design detector: immediate-tier checks after Edit/Write/MultiEdit on UI files, full-rule deep pass on Stop.",
   "enabledMcpjsonServers": [
     "21st"
-  ]
+  ],
+  "hooks": {},
+  "description": "Clean-room WebGL build. Impeccable auto-hooks (PostToolUse + Stop) removed 2026-08-06 — no background process may edit or editorialize scene code. Original hook config backed up in scratchpad/prune-backup/settings.local.json."
 }
