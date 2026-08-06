@@ -1,0 +1,450 @@
+// VOLUMETRIC LIGHT BEAM — the hero.
+//
+// A razor core inside a wide bloom halo, struck down the world Y axis at the
+// exact centre of frame, in a pure black void.
+//
+// Why billboarded planes and not a cylinder: a cylinder is the obvious way to
+// build a beam and it fails at exactly the moment this scene needs it most.
+// The camera plunges *down* the beam, so it passes close to the axis — and a
+// cylinder shows its own silhouette and its own end caps the moment you get
+// near it. Two yaw-billboarded planes have no silhouette from any angle. The
+// beam stays a beam whether you are 12 units away or 0.4.
+//
+// Colour lives in the shader, not in a texture, so the cyan→white→violet ramp
+// is a world-space function of Y — it stays locked to the world as the camera
+// travels rather than sliding with the geometry.
+//
+// Everything additive, nothing writes depth. There is no lighting rig on
+// purpose: nothing here is lit, it *is* the light.
+
+import type { Vector2 } from 'three';
+
+interface StageApi {
+  THREE: typeof import('three');
+  scene: any;
+  camera: any;
+  renderer: any;
+  pointer: Vector2;
+  view: { progress: number; energy: number; flow: number };
+  onTick: (fn: (t: number, dt: number) => void) => () => void;
+  setRenderOverride: (fn: (t: number, dt: number) => void) => () => void;
+}
+
+// ---- tuning ----------------------------------------------------------------
+
+/** Beam runs far past both ends of camera travel so it never terminates on screen. */
+const BEAM_LENGTH = 1600;
+/** Plane width for the core pass. The visible core is a tiny fraction of this. */
+const CORE_WIDTH = 3.0;
+/** The outer haze that bleeds into the void. */
+const HAZE_WIDTH = 16.0;
+
+/** World units the camera descends across the full scroll. */
+const TRAVEL = 220;
+/** Resting distance from the axis. */
+const CAM_Z = 12;
+
+const DUST_COUNT = 2600;
+/** Dust wraps within this Y window around the camera, so it is always present. */
+const DUST_RANGE = 140;
+const DUST_RADIUS = 26;
+
+const CYAN = 0x00e5ff;
+const VIOLET = 0x7a1fff;
+
+// ---- shaders ---------------------------------------------------------------
+
+const BEAM_VERT = /* glsl */ `
+  varying vec2 vUv;
+  varying float vWorldY;
+
+  void main() {
+    vUv = uv;
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorldY = world.y;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const BEAM_FRAG = /* glsl */ `
+  precision highp float;
+
+  uniform float uTime;
+  uniform float uEnergy;
+  uniform float uIntensity;
+  uniform float uCoreExp;
+  uniform float uMidExp;
+  uniform float uHaloExp;
+  uniform float uCoreGain;
+  uniform float uMidGain;
+  uniform float uHaloGain;
+  uniform float uFlickerAmt;
+  uniform float uRampFreq;
+  uniform float uRampDrift;
+  uniform float uWhiteMix;
+  uniform float uSat;
+  uniform vec3  uColorA;
+  uniform vec3  uColorB;
+
+  varying vec2 vUv;
+  varying float vWorldY;
+
+  float hash(float n) { return fract(sin(n) * 43758.5453123); }
+
+  float vnoise(float x) {
+    float i = floor(x);
+    float f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(hash(i), hash(i + 1.0), f);
+  }
+
+  void main() {
+    // 0 on the axis, 1 at the plane edge.
+    float d = clamp(abs(vUv.x - 0.5) * 2.0, 0.0, 1.0);
+    float inv = 1.0 - d;
+
+    // Three nested falloffs. The razor centre is the high exponent; the wide
+    // low-exponent term is what bloom grabs and smears into the void.
+    float core = pow(inv, uCoreExp) * uCoreGain;
+    float mid  = pow(inv, uMidExp)  * uMidGain;
+    float halo = pow(inv, uHaloExp) * uHaloGain;
+
+    // Travelling energy along the beam. Two octaves at different speeds so it
+    // reads as charge moving through the column, not as a texture sliding.
+    float n =
+      vnoise(vWorldY * 0.30 - uTime * 1.7) * 0.55 +
+      vnoise(vWorldY * 1.55 + uTime * 3.3) * 0.28 +
+      0.60;
+    n = mix(1.0, n, uFlickerAmt);
+
+    // World-space colour ramp, cyan <-> violet.
+    //
+    // This was originally a linear ramp over vWorldY * 0.010, which needs ±50
+    // world units to traverse — but the camera only sees ~11 units of beam at
+    // rest, so every visible pixel sat at g≈0.5 and the beam rendered as one
+    // flat colour. Measured off-axis: identical RGB at top and bottom of frame.
+    // Periodic instead: a ~60-unit wavelength puts a visible gradient across
+    // the frame AND cycles the beam through several colour zones during the
+    // descent, which is where the "multi-coloured" reading actually comes from.
+    float g = 0.5 + 0.5 * sin(vWorldY * uRampFreq + uRampDrift);
+    vec3 col = mix(uColorA, uColorB, g);
+
+    // Push chroma before the white core is mixed in. Bloom smears the core
+    // outward and desaturates whatever it lands on, so the halo has to start
+    // over-saturated to survive the post chain.
+    float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(vec3(l), col, uSat);
+
+    // White-hot centre only. Mixing harder than this bleaches the bloom, and a
+    // bleached bloom is what turns a cyan/violet beam into a grey searchlight.
+    col = mix(col, vec3(1.0), clamp(core * uWhiteMix, 0.0, 1.0));
+
+    float a = (core + mid + halo) * n * uIntensity * (0.72 + uEnergy * 0.75);
+
+    // Feather both ends so the column never shows a hard terminator.
+    a *= smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
+
+    // Additive: srcAlpha is 1 and the colour carries the intensity, so values
+    // above 1.0 survive into the bloom pass instead of clipping here.
+    gl_FragColor = vec4(col * a, 1.0);
+  }
+`;
+
+const DUST_VERT = /* glsl */ `
+  precision highp float;
+
+  uniform float uTime;
+  uniform float uCamY;
+  uniform float uRange;
+  uniform float uSize;
+  uniform float uPixelRatio;
+
+  attribute float aSeed;
+
+  varying float vGlow;
+
+  void main() {
+    // Wrap each mote into a window centred on the camera so the volume is
+    // always populated no matter how far the camera has descended.
+    float drift = uTime * (0.6 + aSeed * 1.4);
+    float y = mod(position.y + drift - uCamY + uRange * 0.5, uRange) - uRange * 0.5 + uCamY;
+
+    float sway = sin(uTime * 0.4 + aSeed * 30.0) * 0.5;
+    vec3 p = vec3(position.x + sway, y, position.z);
+
+    // Motes near the axis are lit by the beam; distant ones fall to nothing.
+    float r = length(p.xz);
+    vGlow = exp(-r * 0.13) * (0.35 + aSeed * 0.65);
+
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_PointSize = uSize * uPixelRatio * (90.0 / max(0.001, -mv.z));
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const DUST_FRAG = /* glsl */ `
+  precision highp float;
+
+  uniform vec3 uColor;
+  varying float vGlow;
+
+  void main() {
+    vec2 c = gl_PointCoord - 0.5;
+    float d = dot(c, c);
+    if (d > 0.25) discard;
+    float falloff = 1.0 - smoothstep(0.0, 0.25, d);
+    gl_FragColor = vec4(uColor * falloff * vGlow * 1.4, 1.0);
+  }
+`;
+
+// ---- scene -----------------------------------------------------------------
+
+export interface BeamHandle {
+  group: any;
+  bloom: any;
+  composer: any;
+  /** Runs one frame of scene logic. Registered on the clock; exposed so the
+   *  camera path and bloom can be driven and measured without a live rAF. */
+  step: (t: number, dt: number) => void;
+  uniforms: { rampFreq: { value: number }; rampDrift: { value: number }; shared: any };
+  dispose: () => void;
+}
+
+export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
+  const { THREE, scene, camera, renderer } = api;
+
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Pure void. The beam is the only thing emitting, so the ground must be a
+  // true zero or the bloom threshold has nothing to bite against.
+  scene.background = new THREE.Color(0x000000);
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const shared = {
+    uTime: { value: 0 },
+    uEnergy: { value: 0 },
+    uColorA: { value: new THREE.Color(CYAN) },
+    uColorB: { value: new THREE.Color(VIOLET) },
+  };
+
+  // 20 world-unit wavelength. Shared so both layers band identically — if the
+  // core and the haze disagreed on colour the beam would fringe.
+  //
+  // Swept against the framebuffer at 60 / 30 / 20 / 14. The camera is pitched
+  // down the beam, so perspective crowds a large world-Y span into frame; 60
+  // rendered as flat cyan (hue spread 0.13), 20 puts violet at the top of frame
+  // and cyan at the bottom (spread 0.38) and cycles the colour zones several
+  // times across the descent. Below 14 the far field starts to band.
+  const rampFreq = { value: (Math.PI * 2) / 20 };
+  const rampDrift = { value: 0 };
+
+  const makeBeamLayer = (
+    width: number,
+    opts: {
+      coreExp: number; midExp: number; haloExp: number;
+      coreGain: number; midGain: number; haloGain: number;
+      intensity: number; flicker: number; order: number;
+      whiteMix: number; sat: number;
+    },
+  ) => {
+    const geo = new THREE.PlaneGeometry(width, BEAM_LENGTH, 1, 220);
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: BEAM_VERT,
+      fragmentShader: BEAM_FRAG,
+      uniforms: {
+        ...shared,
+        uIntensity: { value: opts.intensity },
+        uCoreExp: { value: opts.coreExp },
+        uMidExp: { value: opts.midExp },
+        uHaloExp: { value: opts.haloExp },
+        uCoreGain: { value: opts.coreGain },
+        uMidGain: { value: opts.midGain },
+        uHaloGain: { value: opts.haloGain },
+        uFlickerAmt: { value: reduced ? 0.15 : opts.flicker },
+        uRampFreq: rampFreq,
+        uRampDrift: rampDrift,
+        uWhiteMix: { value: opts.whiteMix },
+        uSat: { value: opts.sat },
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = opts.order;
+    mesh.frustumCulled = false;
+    group.add(mesh);
+    return { mesh, geo, mat };
+  };
+
+  // The razor. Exponent 38 puts the white centre inside ~1.5% of the plane
+  // width — a couple of pixels at rest, which bloom then blows outward.
+  //
+  // The mid/halo gains are deliberately low. Tuned by reading the framebuffer:
+  // the first pass ran intensity 3.4 with midGain 0.34, which pushed the mid
+  // term above 1.0 across a wide band, clipped after tone mapping and lit 96%
+  // of the row — a floodlight, not a beam. Keeping the sum under 1.0 outside
+  // the core is what preserves the edge.
+  const core = makeBeamLayer(CORE_WIDTH, {
+    coreExp: 38, midExp: 18, haloExp: 6.5,
+    coreGain: 1.0, midGain: 0.12, haloGain: 0.020,
+    intensity: 1.9, flicker: 1.0, order: 10,
+    whiteMix: 0.7, sat: 1.35,
+  });
+
+  // The bleed. Wide, soft, dim — this is what makes the void feel like it has
+  // air in it rather than the beam sitting on a flat black card.
+  const haze = makeBeamLayer(HAZE_WIDTH, {
+    coreExp: 14, midExp: 4.0, haloExp: 1.6,
+    coreGain: 0.22, midGain: 0.13, haloGain: 0.055,
+    intensity: 0.22, flicker: 0.55, order: 9,
+    // No white in the haze at all — it exists purely to carry chroma into the
+    // void, and any white here is what greys the bloom out.
+    whiteMix: 0.0, sat: 1.6,
+  });
+
+  // ---- dust ----------------------------------------------------------------
+  const dustGeo = new THREE.BufferGeometry();
+  const pos = new Float32Array(DUST_COUNT * 3);
+  const seed = new Float32Array(DUST_COUNT);
+  for (let i = 0; i < DUST_COUNT; i++) {
+    // Biased toward the axis so the volume reads densest inside the beam.
+    const r = Math.pow(Math.random(), 1.7) * DUST_RADIUS;
+    const a = Math.random() * Math.PI * 2;
+    pos[i * 3] = Math.cos(a) * r;
+    pos[i * 3 + 1] = Math.random() * DUST_RANGE;
+    pos[i * 3 + 2] = Math.sin(a) * r;
+    seed[i] = Math.random();
+  }
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  dustGeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+
+  const dustMat = new THREE.ShaderMaterial({
+    vertexShader: DUST_VERT,
+    fragmentShader: DUST_FRAG,
+    uniforms: {
+      uTime: shared.uTime,
+      uCamY: { value: 0 },
+      uRange: { value: DUST_RANGE },
+      uSize: { value: reduced ? 1.1 : 1.5 },
+      uPixelRatio: { value: Math.min(devicePixelRatio, 2) },
+      uColor: { value: new THREE.Color(0x9fe8ff) },
+    },
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const dust = new THREE.Points(dustGeo, dustMat);
+  dust.frustumCulled = false;
+  dust.renderOrder = 8;
+  group.add(dust);
+
+  // ---- post ----------------------------------------------------------------
+  const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] =
+    await Promise.all([
+      import('three/examples/jsm/postprocessing/EffectComposer.js'),
+      import('three/examples/jsm/postprocessing/RenderPass.js'),
+      import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
+      import('three/examples/jsm/postprocessing/OutputPass.js'),
+    ]);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+
+  // Threshold sits above the haze and below the core, so the razor blooms hard
+  // while the surrounding volume stays a volume instead of turning to fog.
+  //
+  // Radius is the value that matters most here and the easiest to overdo: at
+  // 0.72 the glow reached the frame edge and the beam stopped reading as a
+  // beam. 0.28 keeps the bleed inside roughly a fifth of the viewport.
+  const bloom = new UnrealBloomPass(
+    new THREE.Vector2(innerWidth, innerHeight),
+    0.85, // strength
+    0.28, // radius
+    0.80, // threshold
+  );
+  composer.addPass(bloom);
+  // OutputPass applies the renderer's ACES tone map + sRGB at the very end,
+  // which is what lets the core run far above 1.0 without clipping to a disc.
+  composer.addPass(new OutputPass());
+
+  let lastW = 0;
+  let lastH = 0;
+  let camY = 0;
+  let camZ = CAM_Z;
+
+  const _dir = new THREE.Vector3();
+  const _look = new THREE.Vector3();
+
+  const damp = (a: number, b: number, l: number, dt: number) =>
+    a + (b - a) * (1 - Math.exp(-l * dt));
+
+  const step = (t: number, dt: number) => {
+    const w = innerWidth || 1;
+    const h = innerHeight || 1;
+    if (w !== lastW || h !== lastH) {
+      lastW = w;
+      lastH = h;
+      composer.setSize(w, h);
+      composer.setPixelRatio?.(Math.min(devicePixelRatio, 2));
+      bloom.setSize(w, h);
+    }
+
+    shared.uTime.value = t;
+    shared.uEnergy.value = api.view.energy;
+    // Slow chromatic drift so the colour zones are never quite where you left
+    // them. Frozen under reduced-motion.
+    if (!reduced) rampDrift.value = t * 0.18;
+
+    // ---- camera: plunge down the beam --------------------------------------
+    const p = api.view.progress;
+    camY = damp(camY, -p * TRAVEL, 6, dt);
+    // Pull in toward the axis as the descent begins, so it reads as falling
+    // *into* the beam rather than riding alongside it on a rail.
+    camZ = damp(camZ, CAM_Z - Math.sin(Math.min(1, p * 1.15) * Math.PI) * 5.2, 4, dt);
+
+    const px = reduced ? 0 : api.pointer.x;
+    const py = reduced ? 0 : api.pointer.y;
+
+    camera.position.set(px * 1.4, camY + py * 0.9, camZ);
+    // Aim slightly below the camera: the eye follows the beam downward into
+    // where the journey is going.
+    _look.set(0, camY - 7, 0);
+    camera.lookAt(_look);
+
+    dustMat.uniforms.uCamY.value = camY;
+
+    // ---- billboard ----------------------------------------------------------
+    // Yaw only. Rotating on any other axis would tip the beam off vertical.
+    _dir.subVectors(camera.position, group.position);
+    group.rotation.y = Math.atan2(_dir.x, _dir.z);
+  };
+
+  const stopTick = api.onTick(step);
+
+  const stopRender = api.setRenderOverride(() => {
+    composer.render();
+  });
+
+  const dispose = () => {
+    stopTick();
+    stopRender();
+    group.removeFromParent();
+    core.geo.dispose();
+    core.mat.dispose();
+    haze.geo.dispose();
+    haze.mat.dispose();
+    dustGeo.dispose();
+    dustMat.dispose();
+    composer.dispose?.();
+    bloom.dispose?.();
+  };
+
+  return { group, bloom, composer, step, uniforms: { rampFreq, rampDrift, shared }, dispose };
+}

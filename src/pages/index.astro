@@ -3,54 +3,116 @@ import Base from '../layouts/Base.astro';
 ---
 
 <Base>
-  {/* The dolly reads window scroll through lib/loop's `view.progress`, so the
-      document needs actual height to travel across. Three viewports gives the
-      camera a slow, deliberate pass down the bodywork. */}
+  {/* The camera reads window scroll through lib/loop's `view.progress`, so the
+      document needs real height to descend across. Five viewports gives the
+      plunge room to build before any project waypoint exists to arrive at. */}
   <div class="scroll-track" aria-hidden="true"></div>
 
-  {/* SCAFFOLDING — comes out with the typographic mask. */}
-  <section class="probe">
-    <p class="hud" data-probe-status>stage · initialising</p>
-    <p class="hud probe--dim" data-probe-model></p>
+  <section class="hero" data-hero>
+    <h1 class="hero__title display">Begin to Explore</h1>
+    <p class="hud hero__hint" data-hero-hint>scroll</p>
   </section>
+
+  {/* SCAFFOLDING — status probe, comes out once the journey is built. */}
+  <p class="hud probe" data-probe>stage · initialising</p>
 </Base>
 
 <style>
-  .scroll-track { height: 300vh; }
+  .scroll-track { height: 500vh; }
+
+  .hero {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: clamp(2rem, 6vh, 4rem);
+    pointer-events: none;
+    will-change: opacity, transform;
+  }
+
+  /* The beam is blown out at frame centre, so white type laid straight over it
+     loses its counters. A narrow scrim — only as tall as the line itself —
+     buys back the contrast without putting a visible plate in the void. */
+  .hero__title {
+    position: relative;
+    margin: 0;
+    font-size: clamp(1.75rem, 5.2vw, 4.25rem);
+    letter-spacing: 0.02em;
+    text-align: center;
+    padding: 0.55em clamp(1rem, 6vw, 5rem);
+    color: #fff;
+    text-shadow:
+      0 0 22px rgba(120, 220, 255, 0.55),
+      0 0 60px rgba(138, 60, 255, 0.35);
+  }
+  .hero__title::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.62) 22%,
+      rgba(0, 0, 0, 0.75) 50%,
+      rgba(0, 0, 0, 0.62) 78%,
+      transparent 100%
+    );
+    filter: blur(6px);
+  }
+
+  .hero__hint {
+    color: color-mix(in oklab, var(--fg) 55%, transparent);
+    animation: hint 2.6s var(--ease) infinite;
+  }
+
+  @keyframes hint {
+    0%, 100% { opacity: 0.35; transform: translateY(0); }
+    50%      { opacity: 0.9;  transform: translateY(3px); }
+  }
 
   .probe {
     position: fixed;
     left: clamp(1rem, 3vw, 2.5rem);
     bottom: clamp(1rem, 3vw, 2.5rem);
-    display: grid;
-    gap: 0.4rem;
     pointer-events: none;
-    color: color-mix(in oklab, var(--fg) 60%, transparent);
+    color: color-mix(in oklab, var(--fg) 45%, transparent);
   }
-  .probe--dim { color: color-mix(in oklab, var(--fg) 32%, transparent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero__hint { animation: none; opacity: 0.6; }
+  }
 </style>
 
 <script>
-  import { initShifuShell } from '../scenes/shifu-shell';
+  import { initLightBeam } from '../scenes/light-beam';
+  import { onFrame, view } from '../lib/loop';
 
-  const MODEL = '/models/shifu-26-bodywork.glb';
-  const status = document.querySelector<HTMLElement>('[data-probe-status]');
-  const detail = document.querySelector<HTMLElement>('[data-probe-model]');
+  const probe = document.querySelector<HTMLElement>('[data-probe]');
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
 
   const boot = async () => {
     const api = (window as any).__scene;
-    if (!api || (window as any).__shifuScene) return;
-    if (status) status.textContent = 'stage · loading shell';
+    if (!api || (window as any).__beamScene) return;
+
     try {
-      const info = await initShifuShell(api, MODEL);
-      if (status) status.textContent = 'shifu 26 · bodywork';
-      if (detail) {
-        detail.textContent = `${info.triangles.toLocaleString()} tris · ${info.pointCount.toLocaleString()} carbon points · steel + enamel solid`;
+      const beam = await initLightBeam(api);
+      (window as any).__beamScene = beam;
+      if (probe) probe.textContent = 'beam · live';
+
+      // The hero belongs to the resting state only. It clears within the first
+      // fifth of the descent so the beam is unobstructed for the journey.
+      if (hero) {
+        onFrame(() => {
+          const k = Math.min(1, view.progress / 0.18);
+          hero.style.opacity = String(1 - k);
+          hero.style.transform = `translate3d(0, ${-k * 40}px, 0)`;
+        });
       }
     } catch (err) {
-      if (status) status.textContent = 'stage · load failed';
-      if (detail) detail.textContent = String((err as Error)?.message ?? err);
-      console.error('[shifu]', err);
+      if (probe) probe.textContent = 'beam · failed — see console';
+      console.error('[beam]', err);
     }
   };
 
