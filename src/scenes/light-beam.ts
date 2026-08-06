@@ -58,6 +58,8 @@ const BLOOM_RADIUS = 0.28;
 const BLOOM_THRESHOLD = 0.8;
 const DIVE_BLOOM_STRENGTH = 3.2;
 const DIVE_BLOOM_RADIUS = 0.9;
+/** Peak additive light emitted by the flash quad. */
+const FLASH_LEVEL = 16;
 
 const DUST_COUNT = 2600;
 /** Dust wraps within this Y window around the camera, so it is always present. */
@@ -248,6 +250,10 @@ export interface BeamHandle {
   diveRef: { value: number };
   /** Live 0..1 gate for stop typography; shut until a dive has been crossed. */
   revealRef: { value: number };
+  /** Live 1..0 beam life. Drops to 0 past the dive peak, under the white. */
+  lifeRef: { value: number };
+  /** The post-bloom white-out pass. */
+  flashPass: any;
   uniforms: { rampFreq: { value: number }; rampDrift: { value: number }; shared: any };
   dispose: () => void;
 }
@@ -394,14 +400,62 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   dust.renderOrder = 8;
   group.add(dust);
 
+  // ---- the flash -----------------------------------------------------------
+  //
+  // The white-out cannot be made of beam any more. Up to now the blinding frame
+  // WAS the beam, boosted and bloomed — which is fine right up until the beam
+  // has to die inside it. Killing the source of the white kills the white, and
+  // the threshold becomes a hard cut to black rather than a camera emerging
+  // from a fade.
+  //
+  // So the white gets its own source: a clip-space quad, independent of the
+  // camera and of anything in the scene. The beam can now die underneath it and
+  // the flash fades off a void that no longer contains a beam.
+  //
+  // It is applied AFTER the bloom pass, not as geometry in the scene. As a
+  // mesh it went through UnrealBloomPass, and bloom applied to a full-screen
+  // uniform field simply multiplies it — so the frame stayed pinned at 255
+  // until the flash fell under the bloom threshold and then collapsed all at
+  // once. Measured: 100% white at 1.63vh, mean 62 at 1.66vh. Post-bloom, the
+  // level maps straight through ACES and the exit sweeps real mid-greys.
+  //
+  // Still inside the composer rather than a DOM overlay on purpose — the
+  // blow-out has to be true of the framebuffer itself, not of something
+  // covering it.
+  const FlashShader = {
+    uniforms: { tDiffuse: { value: null }, uLevel: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform sampler2D tDiffuse;
+      uniform float uLevel;
+      varying vec2 vUv;
+      void main() {
+        gl_FragColor = texture2D(tDiffuse, vUv) + vec4(vec3(uLevel), 0.0);
+      }
+    `,
+  };
+
   // ---- post ----------------------------------------------------------------
-  const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] =
-    await Promise.all([
-      import('three/examples/jsm/postprocessing/EffectComposer.js'),
-      import('three/examples/jsm/postprocessing/RenderPass.js'),
-      import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
-      import('three/examples/jsm/postprocessing/OutputPass.js'),
-    ]);
+  const [
+    { EffectComposer },
+    { RenderPass },
+    { UnrealBloomPass },
+    { ShaderPass },
+    { OutputPass },
+  ] = await Promise.all([
+    import('three/examples/jsm/postprocessing/EffectComposer.js'),
+    import('three/examples/jsm/postprocessing/RenderPass.js'),
+    import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
+    import('three/examples/jsm/postprocessing/ShaderPass.js'),
+    import('three/examples/jsm/postprocessing/OutputPass.js'),
+  ]);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -419,6 +473,12 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     BLOOM_THRESHOLD,
   );
   composer.addPass(bloom);
+  // Flash sits between bloom and output: bloomed scene in, white added on top,
+  // then tone-mapped once. Disabled entirely outside a dive so it costs a
+  // no-op rather than a fullscreen pass on every ordinary frame.
+  const flashPass = new ShaderPass(FlashShader);
+  flashPass.enabled = false;
+  composer.addPass(flashPass);
   // OutputPass applies the renderer's ACES tone map + sRGB at the very end,
   // which is what lets the core run far above 1.0 without clipping to a disc.
   composer.addPass(new OutputPass());
@@ -445,6 +505,20 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
   // BY crossing the threshold rather than being visible before it, wiped, and
   // shown again. Outside a dive window this is simply 1.
   const revealRef = { value: 1 };
+
+  // THE MAGIC TRICK.
+  //
+  // The beam is an intro element. It dies at the peak of the dive, inside the
+  // measured 100%-white plateau, so the swap is physically unobservable — you
+  // travel through the core and arrive somewhere the beam simply is not.
+  //
+  // Held as a damped 1..0 value rather than a boolean because a bare
+  // `s >= peak` flip is only invisible if a frame actually renders inside the
+  // plateau. A scrollbar drag or an anchor jump can skip 1.3 -> 1.6 in one
+  // frame, where the screen is only ~28% white, and the beam would blink out in
+  // full view. Carrying a life value lets the blow-out be *held* until the kill
+  // has completed, so the trick cannot be caught out by a skipped frame.
+  const lifeRef = { value: 1 };
 
   const _dir = new THREE.Vector3();
   const _look = new THREE.Vector3();
@@ -483,11 +557,30 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
 
     // ---- the white-out dive -------------------------------------------------
     const dv = diveAt(s);
-    diveRef.value = dv;
+
+    // Beam life. Dies past the peak, returns if you scroll back up through it —
+    // the swap happens under white in both directions.
+    const alive = s < DIVE.peak ? 1 : 0;
+    // Outside the threshold entirely, the beam simply exists. Snapping here
+    // stops a jump back to the hero from fading the beam in over open void.
+    lifeRef.value = s <= DIVE.start ? 1 : damp(lifeRef.value, alive, 12, dt);
+
+    // Effective blow-out: never less than what is needed to cover a kill still
+    // in progress. This is the term that makes the trick skip-frame-proof.
+    const killMask = s >= DIVE.peak ? lifeRef.value : 0;
+    const effDive = Math.max(dv, killMask);
+    diveRef.value = effDive;
+
+    // Flip at 0.92, not 0.5. Purity measures 100% at dive 0.926 but only ~30%
+    // at 0.5 — swapping at the midpoint would show the beam vanishing through
+    // a half-transparent screen.
+    group.visible = lifeRef.value > 0.92;
+
     // Before the peak the gate is shut outright; after it, (1 - dive) opens it
     // as the camera withdraws. Both terms are 0 exactly at the peak, so there
-    // is no discontinuity where they meet.
-    revealRef.value = s >= DIVE.peak ? 1 - dv : 0;
+    // is no discontinuity where they meet. Keyed to effDive so the UI stays
+    // hidden for any held white-out too.
+    revealRef.value = s >= DIVE.peak ? 1 - effDive : 0;
 
     camY = damp(camY, -descent(s), 6, dt);
 
@@ -504,15 +597,30 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     shared.uSplinter.value = damp(shared.uSplinter.value, focus * 0.34, 5, dt);
     shared.uSpread.value = damp(shared.uSpread.value, focus * 0.55, 5, dt);
 
-    // Blow-out. Ramped on dv^2 so the frame stays readable through most of the
-    // approach and only detonates in the last part of it.
-    shared.uBoost.value = 1 + dv * dv * DIVE_BOOST;
-    renderer.toneMappingExposure = 1 + dv * dv * DIVE_EXPOSURE;
-    bloom.strength = BLOOM_STRENGTH + dv * (DIVE_BLOOM_STRENGTH - BLOOM_STRENGTH);
-    bloom.radius = BLOOM_RADIUS + dv * (DIVE_BLOOM_RADIUS - BLOOM_RADIUS);
+    // Blow-out. Ramped on effDive^2 so the frame stays readable through most of
+    // the approach and only detonates in the last part of it. Keyed to effDive,
+    // not dv, so a kill still completing holds the frame white.
+    shared.uBoost.value = 1 + effDive * effDive * DIVE_BOOST;
+    renderer.toneMappingExposure = 1 + effDive * effDive * DIVE_EXPOSURE;
+    bloom.strength = BLOOM_STRENGTH + effDive * (DIVE_BLOOM_STRENGTH - BLOOM_STRENGTH);
+    bloom.radius = BLOOM_RADIUS + effDive * (DIVE_BLOOM_RADIUS - BLOOM_RADIUS);
     // Threshold to 0 means the bloom pass stops discriminating and lifts the
     // entire frame, which is what turns a bright core into a full white field.
-    bloom.threshold = BLOOM_THRESHOLD * (1 - dv);
+    bloom.threshold = BLOOM_THRESHOLD * (1 - effDive);
+
+    // The flash carries the last of the white on its own, so the beam is free
+    // to disappear beneath it.
+    //
+    // Additive level, not an alpha. Two earlier shapes both produced a cliff:
+    // measured 100% pure white at 1.61vh and 0% by 1.64vh. The cause was not
+    // the curve — it was that an alpha veil at colour 14 lands above 1.0 linear
+    // for almost its entire alpha range, so ACES pinned it to 255 until it
+    // abruptly did not. Emitting light instead lets the exit sweep through
+    // genuine mid-greys as the level falls, which is what "emerging from the
+    // white" actually looks like.
+    const flashAmt = Math.pow(effDive, 2.5);
+    flashPass.uniforms.uLevel.value = flashAmt * FLASH_LEVEL;
+    flashPass.enabled = flashAmt > 0.0004;
 
     // Pointer sway is suppressed through the dive — at 0.3 units from the axis
     // it would swing the camera through the beam rather than around it.
@@ -557,6 +665,7 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     haze.mat.dispose();
     dustGeo.dispose();
     dustMat.dispose();
+    flashPass.dispose?.();
     composer.dispose?.();
     bloom.dispose?.();
   };
@@ -569,6 +678,8 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     focusOf,
     diveRef,
     revealRef,
+    lifeRef,
+    flashPass,
     uniforms: { rampFreq, rampDrift, shared },
     dispose,
   };

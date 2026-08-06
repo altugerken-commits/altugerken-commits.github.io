@@ -25,17 +25,38 @@
 // rather than a galaxy, while the handful that were visible had to be bright
 // enough to see — exactly backwards. Many more, much fainter, in a tighter
 // volume gives a field you sense rather than count.
-const COUNT = 9000;
+const COUNT = 26000;
 /** Cylindrical shell around the beam axis. Nothing closer than this. */
 const R_MIN = 90;
 const R_MAX = 520;
-/** Y span, generous enough to cover the full descent plus overshoot. */
-const Y_MIN = -420;
-const Y_MAX = 200;
+/**
+ * Y span. Tightened to the actual descent (0 -> -260) plus headroom, rather
+ * than the generous -420..200 it started with.
+ *
+ * The field visibly thinned as the camera descended: 1578 stars in frustum at
+ * the hero but only 367 at the AEQUA stop and 184 at the SHIFU region. That was
+ * survivable while the beam dominated the frame. It is not survivable now the
+ * beam dies at the dive and the starfield becomes the entire showcase
+ * environment — the deepest part of the journey was also the emptiest.
+ *
+ * The cause is the camera sitting at the TOP of the volume: at Y 0 its frustum
+ * looks down through the entire field, but by Y -260 most of the field is
+ * behind it and the cone runs out into nothing. Merely tightening the span made
+ * it worse at depth. The fix is to extend the floor well below the deepest
+ * camera position (descent bottoms out at -260) and scale COUNT to hold density
+ * per unit Y constant, so every depth sees a full column.
+ */
+const Y_MIN = -620;
+const Y_MAX = 90;
 /** Fraction of stars pulled toward the galactic band. */
-const BAND_SHARE = 0.62;
-const BAND_TILT = 0.42;
-const BAND_TIGHTNESS = 90;
+const BAND_SHARE = 0.5;
+/**
+ * Shallower than it was (0.42). A steep tilt turns the band into a plane the
+ * camera crosses once, which is a second source of density swing along the
+ * descent on top of the Y span.
+ */
+const BAND_TILT = 0.16;
+const BAND_TIGHTNESS = 70;
 
 const VERT = /* glsl */ `
   precision highp float;
