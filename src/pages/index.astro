@@ -1,25 +1,40 @@
 ---
 import Base from '../layouts/Base.astro';
+import { TRACK_VH } from '../lib/stops';
 ---
 
 <Base>
-  {/* The camera reads window scroll through lib/loop's `view.progress`, so the
-      document needs real height to descend across. Five viewports gives the
-      plunge room to build before any project waypoint exists to arrive at. */}
-  <div class="scroll-track" aria-hidden="true"></div>
+  {/* The camera reads window scroll through lib/loop's `view`, and the descent
+      map in lib/stops authors the stops in viewport-heights. The track just
+      has to be long enough to contain them. */}
+  <div class="scroll-track" style={`height:${TRACK_VH * 100}vh`} aria-hidden="true"></div>
 
   <section class="hero" data-hero>
     <h1 class="hero__title display">Begin to Explore</h1>
     <p class="hud hero__hint" data-hero-hint>scroll</p>
   </section>
 
-  {/* SCAFFOLDING — status probe, comes out once the journey is built. */}
+  {/* FIRST STOP — AEQUA. Sits opposite the object, which holds frame centre
+      inside the beam. Hidden from AT and from tab order until it is present. */}
+  <aside class="stop stop--right" data-stop="aequa" aria-hidden="true">
+    <p class="hud stop__index">01 — Stop</p>
+    <h2 class="stop__title display">Aequa</h2>
+    <dl class="stop__meta hud">
+      <div><dt>Type</dt><dd>Pour-over brewer</dd></div>
+      <div><dt>Materials</dt><dd>Borosilicate · anodised aluminium</dd></div>
+      <div><dt>Year</dt><dd>2025</dd></div>
+    </dl>
+    <button class="stop__cta hud" type="button" data-stop-cta="aequa">
+      <span>View details</span>
+      <span class="stop__rule" aria-hidden="true"></span>
+    </button>
+  </aside>
+
+  {/* SCAFFOLDING — status probe. */}
   <p class="hud probe" data-probe>stage · initialising</p>
 </Base>
 
 <style>
-  .scroll-track { height: 500vh; }
-
   .hero {
     position: fixed;
     inset: 0;
@@ -72,6 +87,77 @@ import Base from '../layouts/Base.astro';
     50%      { opacity: 0.9;  transform: translateY(3px); }
   }
 
+  /* ---- project stop overlay ---------------------------------------------- */
+
+  .stop {
+    /* Base Y offset, so the reveal transform is written once and stays correct
+       when the panel moves from vertically-centred to bottom-anchored. */
+    --stop-y: -50%;
+    position: fixed;
+    top: 50%;
+    width: min(30ch, 34vw);
+    display: grid;
+    gap: clamp(0.9rem, 2.2vh, 1.6rem);
+    opacity: 0;
+    will-change: opacity, transform;
+  }
+  .stop--right {
+    right: clamp(1.5rem, 6vw, 6rem);
+    text-align: right;
+    justify-items: end;
+  }
+
+  .stop__index { color: color-mix(in oklab, var(--fg) 45%, transparent); }
+
+  .stop__title {
+    margin: 0;
+    font-size: clamp(2rem, 4.6vw, 3.75rem);
+    color: #fff;
+  }
+
+  .stop__meta {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    color: color-mix(in oklab, var(--fg) 62%, transparent);
+  }
+  .stop__meta > div {
+    display: grid;
+    gap: 0.15rem;
+  }
+  .stop__meta dt {
+    color: color-mix(in oklab, var(--fg) 34%, transparent);
+  }
+  .stop__meta dd { margin: 0; }
+
+  .stop__cta {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: end;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--fg);
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  /* The rule is the whole interaction: it draws itself under the label rather
+     than the label changing colour. Quiet, and it survives on a bright field. */
+  .stop__rule {
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: color-mix(in oklab, var(--fg) 30%, transparent);
+    transform: scaleX(0.28);
+    transform-origin: right;
+    transition: transform 0.5s var(--ease), background-color 0.5s var(--ease);
+  }
+  .stop__cta:hover .stop__rule,
+  .stop__cta:focus-visible .stop__rule {
+    transform: scaleX(1);
+    background: var(--fg);
+  }
+
   .probe {
     position: fixed;
     left: clamp(1rem, 3vw, 2.5rem);
@@ -80,17 +166,43 @@ import Base from '../layouts/Base.astro';
     color: color-mix(in oklab, var(--fg) 45%, transparent);
   }
 
+  /* Below the fold of a phone the object owns the frame; the panel drops to the
+     bottom rather than fighting it for horizontal room. */
+  @media (max-width: 640px) {
+    .stop {
+      --stop-y: 0%;
+      top: auto;
+      bottom: clamp(3.5rem, 12vh, 7rem);
+      left: clamp(1.25rem, 6vw, 3rem);
+      right: clamp(1.25rem, 6vw, 3rem);
+      width: auto;
+      text-align: left;
+      justify-items: start;
+    }
+    .stop__cta { justify-items: start; }
+    .stop__rule { transform-origin: left; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hero__hint { animation: none; opacity: 0.6; }
+    .stop__rule { transition: none; }
   }
 </style>
 
 <script>
   import { initLightBeam } from '../scenes/light-beam';
+  import { initStarfield } from '../scenes/starfield';
+  import { initAequaStop } from '../scenes/aequa-stop';
   import { onFrame, view } from '../lib/loop';
 
   const probe = document.querySelector<HTMLElement>('[data-probe]');
   const hero = document.querySelector<HTMLElement>('[data-hero]');
+  const aequaPanel = document.querySelector<HTMLElement>('[data-stop="aequa"]');
+
+  // Null until the first frame decides, so the very first evaluation always
+  // writes both aria-hidden and inert rather than short-circuiting.
+  let aequaOn: boolean | null = null;
+  if (aequaPanel) (aequaPanel as any).inert = true;
 
   const boot = async () => {
     const api = (window as any).__scene;
@@ -99,17 +211,45 @@ import Base from '../layouts/Base.astro';
     try {
       const beam = await initLightBeam(api);
       (window as any).__beamScene = beam;
-      if (probe) probe.textContent = 'beam · live';
 
-      // The hero belongs to the resting state only. It clears within the first
-      // fifth of the descent so the beam is unobstructed for the journey.
-      if (hero) {
-        onFrame(() => {
-          const k = Math.min(1, view.progress / 0.18);
+      // Behind everything, including the beam's own haze.
+      const stars = initStarfield(api, beam);
+      (window as any).__starfield = stars;
+
+      const aequa = initAequaStop(api, beam);
+      (window as any).__aequaStop = aequa;
+
+      if (probe) probe.textContent = 'beam · live · stop 01 armed';
+
+      onFrame(() => {
+        // Hero belongs to the resting state only.
+        if (hero) {
+          const k = Math.min(1, view.progress / 0.08);
           hero.style.opacity = String(1 - k);
           hero.style.transform = `translate3d(0, ${-k * 40}px, 0)`;
-        });
-      }
+        }
+
+        // The scene is the single authority on stop presence — the panel reads
+        // it rather than recomputing from scroll, so type and geometry can
+        // never disagree about where the stop is.
+        if (aequaPanel) {
+          const f = beam.focusOf.aequa ?? 0;
+          const eased = f * f * (3 - 2 * f);
+          aequaPanel.style.opacity = String(eased);
+          aequaPanel.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
+          // Tracked in JS, not read back off the attribute. Reading the
+          // attribute meant the initial state (already aria-hidden in the
+          // markup) matched on the first frame, the branch never ran, and
+          // `inert` was never set — leaving an invisible panel in the tab
+          // order until the first time the stop toggled.
+          const on = eased > 0.5;
+          if (aequaOn !== on) {
+            aequaOn = on;
+            aequaPanel.setAttribute('aria-hidden', String(!on));
+            (aequaPanel as any).inert = !on;
+          }
+        }
+      });
     } catch (err) {
       if (probe) probe.textContent = 'beam · failed — see console';
       console.error('[beam]', err);
