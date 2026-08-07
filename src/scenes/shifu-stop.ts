@@ -15,6 +15,7 @@
 
 import { STOPS, stopDepth } from '../lib/stops';
 import { matteify } from '../lib/matte';
+import { detail } from '../lib/detail';
 
 const SHIFU = STOPS.find((s) => s.id === 'shifu')!;
 
@@ -31,6 +32,7 @@ const OFFSET_X = 1.55;
 export interface ShifuHandle {
   group: any;
   radius: number;
+  frameSize: { x: number; y: number; z: number };
   info: { meshes: number; triangles: number; materials: string[] };
   dispose: () => void;
 }
@@ -66,6 +68,12 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
   group.add(gltf.scene);
 
   const radius = size.length() * 0.5 * fit * MODEL_SCALE;
+  /** World-space extent at final scale — what the portal must actually frame. */
+  const frameSize = {
+    x: size.x * fit * MODEL_SCALE,
+    y: size.y * fit * MODEL_SCALE,
+    z: size.z * fit * MODEL_SCALE,
+  };
 
   const damp = (a: number, b: number, l: number, dt: number) =>
     a + (b - a) * (1 - Math.exp(-l * dt));
@@ -73,8 +81,9 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
   let reveal = 0;
 
   const stop = api.onTick((_t: number, dt: number) => {
-    const detail = (window as any).__detail;
-    const held = detail?.stopId === 'shifu' && detail.progress > 0.01;
+    // See nomad-stop: this used to read a `window.__detail` global that never
+    // existed, so the car auto-rotated through the whole of detail mode.
+    const held = detail.stopId === 'shifu' && detail.progress > 0.01;
 
     const f = held ? 1 : (beam.focusOf.shifu ?? 0);
     reveal = damp(reveal, f, 5, dt);
@@ -90,6 +99,7 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
   return {
     group,
     radius,
+    frameSize,
     info: { meshes, triangles, materials: matte.names },
     dispose: () => {
       stop();

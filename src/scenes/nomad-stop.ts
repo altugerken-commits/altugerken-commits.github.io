@@ -14,6 +14,7 @@
 
 import { STOPS, stopDepth } from '../lib/stops';
 import { matteify } from '../lib/matte';
+import { detail } from '../lib/detail';
 
 const NOMAD = STOPS.find((s) => s.id === 'nomad')!;
 
@@ -26,6 +27,7 @@ export interface NomadHandle {
   group: any;
   /** Bounding-sphere radius after fit — the portal uses it to frame the model. */
   radius: number;
+  frameSize: { x: number; y: number; z: number };
   meshes: number;
   materials: string[];
   dispose: () => void;
@@ -42,14 +44,18 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   group.position.set(0, objectY, 0);
   scene.add(group);
 
-  const { gltf } = await api.loadGLB('/models/nomad-brewer.glb');
+  const { gltf } = await api.loadGLB('/models/nomad-brewer.opt.glb');
 
   let meshes = 0;
   gltf.scene.traverse((c: any) => {
     if (c.isMesh) meshes++;
   });
 
-  const matte = matteify(gltf.scene);
+  // Absolute matte, not the shared default. This model still had a glossy top
+  // ("Plastic - Glossy (Black)" on the screen bezel, "Stainless Steel -
+  // Brushed" on the lid and body), and 0.92/0.08 left enough specular for a
+  // hotspot. Fully diffuse, zero metal.
+  const matte = matteify(gltf.scene, { minRoughness: 1.0, maxMetalness: 0 });
 
   // Fit at load rather than in the file, so the source asset stays untouched.
   const box = new THREE.Box3().setFromObject(gltf.scene);
@@ -64,6 +70,8 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   group.add(gltf.scene);
 
   const radius = size.length() * 0.5 * fit;
+  /** World-space extent after fitting — what the portal must actually frame. */
+  const frameSize = { x: size.x * fit, y: size.y * fit, z: size.z * fit };
 
   const damp = (a: number, b: number, l: number, dt: number) =>
     a + (b - a) * (1 - Math.exp(-l * dt));
@@ -71,8 +79,11 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   let reveal = 0;
 
   const stop = api.onTick((_t: number, dt: number) => {
-    const detail = (window as any).__detail;
-    const held = detail?.stopId === 'nomad' && detail.progress > 0.01;
+    // Imported state, not a window global. This used to read
+    // `window.__detail`, which never existed — detail.ts pins its state to
+    // `globalThis.__altug_detail__` — so `held` was permanently false and the
+    // model kept turning under the user's drag in detail mode.
+    const held = detail.stopId === 'nomad' && detail.progress > 0.01;
 
     // In detail mode the stop is pinned open regardless of scroll, because
     // scroll is locked and focus would otherwise decay to zero underneath it.
@@ -92,6 +103,7 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   return {
     group,
     radius,
+    frameSize,
     meshes,
     materials: matte.names,
     dispose: () => {

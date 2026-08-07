@@ -28,9 +28,15 @@ export async function initInspect(api: any): Promise<InspectHandle> {
   controls.enabled = false;
   controls.enableDamping = true;
   controls.dampingFactor = 0.075;
+  // Stated explicitly rather than left to defaults — these three are the whole
+  // interaction contract, and a default changing underneath would silently
+  // turn free-roam back into a static render.
+  controls.autoRotate = false;
+  controls.enableRotate = true;
+  controls.enableZoom = true;
   // Panning would let the model be dragged out of frame with no way back.
   controls.enablePan = false;
-  controls.minDistance = 1.2;
+  controls.minDistance = 0.8;
   controls.maxDistance = 60;
   controls.rotateSpeed = 0.85;
   controls.zoomSpeed = 0.7;

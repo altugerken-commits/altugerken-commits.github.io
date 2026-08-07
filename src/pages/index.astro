@@ -25,15 +25,22 @@ import { TRACK_VH } from '../lib/stops';
     <p class="hud about__label">About</p>
     <div class="about__body display">
       <p>
-        I am an industrial design and engineering student at Özyeğin University,
-        working where the drawing has to survive contact with a manufacturing
-        process.
+        I am Altuğ Erken, an industrial design and engineering student at
+        Özyeğin University. I operate at the intersection of aesthetic form and
+        mechanical function, crafting products that are both visually striking
+        and meticulously engineered.
       </p>
       <p>
-        My work sits between form and structure — brewing equipment, composite
-        bodywork, things that are held and things that are driven. I care about
-        the decisions that do not show: wall thickness, draft, the tolerance
-        that makes an assembly feel deliberate instead of merely tight.
+        As a member of the composites and aerodynamics sub-team at Ozu Racing, I
+        specialize in the structural design and advanced manufacturing of
+        vehicle outer shells.
+      </p>
+      <p>
+        Whether I am designing modular outdoor equipment or smart living
+        concepts, my philosophy is rooted in stripping away the unnecessary. I
+        gravitate towards clean geometries, monochrome palettes, and
+        &lsquo;dead-front&rsquo; interfaces, focusing on revealing the pure
+        essence and raw materiality of a product.
       </p>
     </div>
 
@@ -753,6 +760,16 @@ import { TRACK_VH } from '../lib/stops';
   // ---- warp navigation -------------------------------------------------------
   // Wired outside boot() so the nav works even if the WebGL stage fails: the
   // scroll still happens, it simply does not streak.
+  /**
+   * The camera's FOV once the portal has settled, in degrees. light-beam
+   * computes it as BASE_FOV + progress * (DETAIL_FOV - BASE_FOV) * 0.35, which
+   * lands here at progress 1. Framing has to be solved against the RESTING
+   * frustum, not the 142° peak the transition passes through.
+   */
+  const DETAIL_REST_FOV = 45.8;
+  /** Air around the product inside the frame. */
+  const FRAME_MARGIN = 1.28;
+
   const menu = document.querySelector<HTMLElement>('[data-warp-menu]');
   const searchBtn = document.querySelector<HTMLButtonElement>('[data-warp-search]');
 
@@ -924,6 +941,14 @@ import { TRACK_VH } from '../lib/stops';
         document.querySelector<HTMLElement>('.probe'),
       ].filter(Boolean) as HTMLElement[];
 
+      // The DOM layer sits at z-index 1, directly over the canvas, and it is
+      // as tall as the whole track — so it swallows every pointer event before
+      // OrbitControls can see one. Dimming its children was not enough: the
+      // container itself still hit-tests. It is disabled wholesale during
+      // detail mode, and the overlay panel re-enables pointer-events on itself
+      // (a child may opt back in even when an ancestor has opted out).
+      const domLayer = document.querySelector<HTMLElement>('main.layer');
+
       onFrame(() => {
         const svh = view.scrollY / Math.max(1, view.vh);
 
@@ -934,6 +959,10 @@ import { TRACK_VH } from '../lib/stops';
         for (const el of siteChrome) {
           el.style.opacity = String(siteFade);
           el.style.pointerEvents = siteFade < 0.05 ? 'none' : '';
+        }
+        // Opacity untouched here — the overlay lives inside this element.
+        if (domLayer) {
+          domLayer.style.pointerEvents = detail.progress > 0.02 ? 'none' : '';
         }
 
         // Subtitle: full at rest, gone by 0.15vh. Authored in viewport-heights
@@ -956,12 +985,28 @@ import { TRACK_VH } from '../lib/stops';
               : null;
         if (stopHandle) {
           const g = stopHandle.group;
+          // Distance is solved from the model's actual EXTENT and the camera's
+          // real frustum, not from a bounding-sphere radius.
+          //
+          // radius * 2.1 under-framed anything tall and thin: the brewer fits
+          // into a 4.8-unit box on its long axis, so its sphere radius is
+          // dominated by height while its width contributes almost nothing —
+          // the old formula put the camera inside the height it needed to see.
+          // Solving vertical and horizontal separately and taking the larger
+          // guarantees the whole product is inside the frustum whatever its
+          // proportions or the window's aspect.
+          const fs = stopHandle.frameSize;
+          const halfFov = (DETAIL_REST_FOV * Math.PI) / 180 / 2;
+          const aspect = api.camera.aspect || 1.6;
+          const distV = fs.y / 2 / Math.tan(halfFov);
+          const distH = fs.x / 2 / (Math.tan(halfFov) * aspect);
           (window as any).__detailTarget = {
             x: g.position.x,
             y: g.position.y,
             z: g.position.z,
-            // Frame the whole model with a little air around it.
-            dist: Math.max(3, stopHandle.radius * 2.1),
+            // Half the depth is added because the near face sits that much
+            // closer than the centre the distance is measured to.
+            dist: Math.max(distV, distH) * FRAME_MARGIN + fs.z / 2,
           };
         }
 
