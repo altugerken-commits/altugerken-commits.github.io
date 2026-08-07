@@ -67,6 +67,7 @@ const ogImage = new URL('/og.png', canonical);
       import Lenis from 'lenis';
       import { runFrame, measureScroll } from '../lib/loop';
       import { stepWarp } from '../lib/warp';
+      import { stepDetail } from '../lib/detail';
 
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -95,6 +96,7 @@ const ogImage = new URL('/og.png', canonical);
         // Advanced before the frame callbacks so every scene reads the same
         // warp value within a frame.
         stepWarp(performance.now());
+        stepDetail(performance.now());
         runFrame(t);
       });
       gsap.ticker.lagSmoothing(0);

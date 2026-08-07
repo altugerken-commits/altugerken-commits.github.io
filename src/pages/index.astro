@@ -16,7 +16,12 @@ import { TRACK_VH } from '../lib/stops';
     <h1 class="hero__title display" data-greeting>Good Evening.</h1>
   </section>
 
+  {/* About and Toolkit are columns of ONE section, with a gutter down the
+      middle for the beam. Sharing a section is what guarantees they align
+      horizontally and share a scroll lifecycle exactly — two independently
+      positioned blocks would have to be kept in agreement by hand. */}
   <section class="about">
+    <div class="about__col">
     <p class="hud about__label">About</p>
     <div class="about__body display">
       <p>
@@ -40,6 +45,19 @@ import { TRACK_VH } from '../lib/stops';
         <li><a href="https://github.com/altugerken-commits" rel="me noopener" target="_blank">GitHub</a></li>
       </ul>
       <p class="about__cue display">Keep scrolling.</p>
+    </div>
+    </div>
+
+    <div class="toolkit">
+      <p class="hud about__label">Digital Toolkit</p>
+      <ul class="toolkit__list display">
+        <li>Fusion 360</li>
+        <li>Rhino 3D</li>
+        <li>Adobe Creative Cloud</li>
+        <li>D5 Render</li>
+        <li>Blender</li>
+        <li>SolidWorks</li>
+      </ul>
     </div>
   </section>
 
@@ -84,13 +102,19 @@ import { TRACK_VH } from '../lib/stops';
     </ul>
   </nav>
 
-  {/* Right-hand HUD data points, the typographic half of the blueprint. */}
-  <aside class="blueprint" data-blueprint aria-hidden="true">
-    <p class="hud">01 / Engineering</p>
-    <p class="hud">02 / Composites</p>
-    <p class="hud">03 / Manufacture</p>
-    <p class="hud blueprint__dim">ø 4.4 · sweep 07°</p>
-  </aside>
+  {/* DETAIL MODE OVERLAY. Present only at the far end of the portal. */}
+  <div class="detail" data-detail hidden>
+    <div class="detail__panel">
+      <p class="hud detail__index" data-detail-index></p>
+      <h2 class="detail__title display" data-detail-title></h2>
+      <div class="detail__body" data-detail-body></div>
+      <button class="detail__back hud" type="button" data-detail-back>
+        <span aria-hidden="true">←</span>
+        <span>Back</span>
+      </button>
+    </div>
+    <p class="hud detail__hint">Drag to rotate · scroll to zoom</p>
+  </div>
 
   {/* Pinned to the bottom of the viewport, cleared the moment scrolling starts. */}
   <p class="hero__sub" data-hero-sub>Scroll down to navigate in my design galaxy.</p>
@@ -200,15 +224,72 @@ import { TRACK_VH } from '../lib/stops';
 
   /* ---- about ------------------------------------------------------------- */
 
+  /* Two columns with a gutter down the middle for the beam. */
   .about {
     min-height: 100vh;
     display: grid;
-    align-content: center;
+    grid-template-columns:
+      minmax(0, 1fr)
+      clamp(6rem, 16vw, 13rem)
+      minmax(0, 0.62fr);
+    align-items: center;
+    padding: 12vh clamp(1.5rem, 6vw, 6rem);
+    gap: 0;
+  }
+  .about__col {
+    grid-column: 1;
+    display: grid;
     gap: clamp(1.5rem, 4vh, 2.5rem);
-    /* Held to one side so the beam keeps the centre of frame to itself. */
-    max-width: min(52ch, 46vw);
-    margin-inline-start: clamp(1.5rem, 9vw, 10rem);
-    padding: 12vh 0;
+    max-width: 52ch;
+  }
+  .toolkit {
+    grid-column: 3;
+    display: grid;
+    gap: clamp(0.9rem, 2.4vh, 1.4rem);
+    justify-items: end;
+    text-align: right;
+  }
+  .toolkit__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: clamp(0.45rem, 1.4vh, 0.85rem);
+    font-size: clamp(1rem, 1.55vw, 1.5rem);
+    font-weight: 300;
+    line-height: 1.25;
+    color: color-mix(in oklab, var(--fg) 88%, transparent);
+    text-shadow: 0 0 24px rgba(0, 0, 0, 0.85);
+  }
+  .toolkit__list li {
+    position: relative;
+    padding-right: 1.1em;
+  }
+  /* A hairline tick rather than a bullet: the list should read as a spec
+     column, not as body copy with markers. */
+  .toolkit__list li::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0.62em;
+    width: 0.55em;
+    height: 1px;
+    background: color-mix(in oklab, var(--fg) 32%, transparent);
+  }
+
+  @media (max-width: 900px) {
+    .about {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(2.5rem, 8vh, 5rem);
+    }
+    .about__col { grid-column: 1; }
+    .toolkit {
+      grid-column: 1;
+      justify-items: start;
+      text-align: left;
+    }
+    .toolkit__list li { padding-right: 0; padding-left: 1.1em; }
+    .toolkit__list li::after { right: auto; left: 0; }
   }
   .about__label { color: color-mix(in oklab, var(--fg) 42%, transparent); }
   .about__body {
@@ -487,32 +568,76 @@ import { TRACK_VH } from '../lib/stops';
     .nav__btn { padding: 0.55em; }
   }
 
-  /* ---- blueprint HUD ----------------------------------------------------- */
+  /* ---- detail mode ------------------------------------------------------- */
 
-  .blueprint {
+  .detail {
     position: fixed;
-    top: 50%;
-    right: clamp(1.5rem, 6vw, 6rem);
-    transform: translateY(-50%);
+    inset: 0;
     display: grid;
-    gap: 0.75rem;
-    text-align: right;
+    align-content: end;
     pointer-events: none;
     opacity: 0;
-    color: color-mix(in oklab, var(--fg) 42%, transparent);
-    z-index: 1;
+    transition: opacity 0.45s var(--ease);
+    z-index: 5;
   }
-  .blueprint p { margin: 0; }
-  .blueprint__dim {
-    color: color-mix(in oklab, var(--fg) 26%, transparent);
-    margin-top: 0.4rem;
+  .detail[hidden] { display: none; }
+  .detail.is-open { opacity: 1; }
+
+  .detail__panel {
+    pointer-events: auto;
+    width: min(38ch, 40vw);
+    margin: 0 0 clamp(3rem, 10vh, 7rem) clamp(1.5rem, 6vw, 6rem);
+    display: grid;
+    gap: clamp(0.8rem, 2vh, 1.3rem);
+  }
+  .detail__index { color: color-mix(in oklab, var(--fg) 45%, transparent); }
+  .detail__title {
+    margin: 0;
+    font-size: clamp(1.9rem, 4vw, 3.4rem);
+    color: #fff;
+  }
+  .detail__body {
+    display: grid;
+    gap: 0.9em;
+    font-family: var(--font-mono);
+    font-size: clamp(0.78rem, 1vw, 0.9rem);
+    line-height: 1.65;
+    letter-spacing: 0.02em;
+    color: color-mix(in oklab, var(--fg) 74%, transparent);
+  }
+  .detail__body p { margin: 0; }
+
+  .detail__back {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-top: 0.5rem;
+    padding: 0.6em 1.1em;
+    background: color-mix(in oklab, #000 55%, transparent);
+    border: 1px solid color-mix(in oklab, var(--fg) 20%, transparent);
+    border-radius: 999px;
+    color: color-mix(in oklab, var(--fg) 85%, transparent);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: color 0.3s var(--ease), border-color 0.3s var(--ease);
+  }
+  .detail__back:hover,
+  .detail__back:focus-visible {
+    color: var(--fg);
+    border-color: color-mix(in oklab, var(--fg) 50%, transparent);
   }
 
-  /* The blueprint column and the stop panels both live on the right. Below this
-     width there is not room for either to coexist with the object, so the HUD
-     drops out entirely rather than stacking on top of the panels. */
+  .detail__hint {
+    position: absolute;
+    right: clamp(1.5rem, 6vw, 6rem);
+    bottom: clamp(1.5rem, 5vh, 3rem);
+    color: color-mix(in oklab, var(--fg) 38%, transparent);
+  }
+
   @media (max-width: 900px) {
-    .blueprint { display: none; }
+    .detail__panel { width: auto; margin-right: clamp(1.5rem, 6vw, 6rem); }
+    .detail__hint { display: none; }
   }
 
   /* Below the fold of a phone the object owns the frame; the panel drops to the
@@ -544,10 +669,10 @@ import { TRACK_VH } from '../lib/stops';
   import { initStarfield } from '../scenes/starfield';
   import { initNomadStop } from '../scenes/nomad-stop';
   import { initShifuStop } from '../scenes/shifu-stop';
-  import { initBlueprint } from '../scenes/blueprint';
+  import { initInspect } from '../scenes/inspect';
   import { onFrame, view } from '../lib/loop';
   import { warpTo } from '../lib/warp';
-  import { DIVE } from '../lib/stops';
+  import { detail, enterDetail, exitDetail, onDetailChange } from '../lib/detail';
 
   const probe = document.querySelector<HTMLElement>('[data-probe]');
   const heroSub = document.querySelector<HTMLElement>('[data-hero-sub]');
@@ -567,7 +692,6 @@ import { TRACK_VH } from '../lib/stops';
   // scroll still happens, it simply does not streak.
   const menu = document.querySelector<HTMLElement>('[data-warp-menu]');
   const searchBtn = document.querySelector<HTMLButtonElement>('[data-warp-search]');
-  const blueprintHud = document.querySelector<HTMLElement>('[data-blueprint]');
 
   const setMenu = (open: boolean) => {
     if (!menu || !searchBtn) return;
@@ -598,6 +722,80 @@ import { TRACK_VH } from '../lib/stops';
     if (menu && !menu.hidden && !(e.target as Element)?.closest('.nav')) setMenu(false);
   });
 
+  // ---- detail mode -----------------------------------------------------------
+  const COPY: Record<string, { index: string; title: string; body: string[] }> = {
+    nomad: {
+      index: '01 — Detail',
+      title: 'Nomad Brewer',
+      body: [
+        'A modular outdoor coffee and tea brewing device. The body separates into stacked components that travel nested and assemble by feel, without a manual.',
+        'Each joint is a twist-lock: a quarter turn seats and seals it, so the whole stack can be built and struck with cold hands and one free hand.',
+        'Dark matte ceramic for the structure, frosted glass for the vessels — you need to read the brew level without opening anything.',
+      ],
+    },
+    shifu: {
+      index: '02 — Detail',
+      title: 'Shifu 26',
+      body: [
+        'Formula Student bodywork for Ozu Racing, developed in the Composites & Aerodynamics sub-team.',
+        'Carbon fibre skins over a steel spaceframe, with the enamel details kept to the minimum the regulations allow.',
+        'The model shown is the full assembly: 1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without changing a single material definition.',
+      ],
+    },
+  };
+
+  const detailEl = document.querySelector<HTMLElement>('[data-detail]');
+  const detailIndex = document.querySelector<HTMLElement>('[data-detail-index]');
+  const detailTitle = document.querySelector<HTMLElement>('[data-detail-title]');
+  const detailBody = document.querySelector<HTMLElement>('[data-detail-body]');
+
+  const fillDetail = (id: string) => {
+    const c = COPY[id];
+    if (!c || !detailIndex || !detailTitle || !detailBody) return;
+    detailIndex.textContent = c.index;
+    detailTitle.textContent = c.title;
+    detailBody.replaceChildren(
+      ...c.body.map((t) => {
+        const p = document.createElement('p');
+        p.textContent = t;
+        return p;
+      }),
+    );
+  };
+
+  // The overlay appears at the far end of the portal, not at the click — the
+  // transition is the point, and text sliding in over a moving camera would
+  // undercut it.
+  onDetailChange((s) => {
+    if (!detailEl) return;
+    if (s.mode === 'active') {
+      detailEl.hidden = false;
+      requestAnimationFrame(() => detailEl.classList.add('is-open'));
+    } else {
+      detailEl.classList.remove('is-open');
+      if (s.mode === 'idle') {
+        // Wait out the fade before removing from the a11y tree.
+        setTimeout(() => {
+          if (detail.mode === 'idle') detailEl.hidden = true;
+        }, 460);
+      }
+    }
+  });
+
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-stop-cta]')) {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.stopCta;
+      if (!id) return;
+      fillDetail(id);
+      enterDetail(id);
+    });
+  }
+
+  document.querySelector('[data-detail-back]')?.addEventListener('click', () => exitDetail());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && detail.mode === 'active') exitDetail();
+  });
+
   const boot = async () => {
     const api = (window as any).__scene;
     if (!api || (window as any).__beamScene) return;
@@ -615,9 +813,9 @@ import { TRACK_VH } from '../lib/stops';
       const stars = initStarfield(api, beam);
       (window as any).__starfield = stars;
 
-      // Right-hand counterweight to the copy. Lives only across the reading.
-      const blueprint = initBlueprint(api);
-      (window as any).__blueprint = blueprint;
+      initInspect(api).then((ins) => {
+        (window as any).__inspectHandle = ins;
+      });
 
       initNomadStop(api, beam)
         .then((nomad) => {
@@ -636,8 +834,8 @@ import { TRACK_VH } from '../lib/stops';
           (window as any).__shifuStop = shifu;
           if (probe) {
             probe.textContent =
-              `beam · ${shifu.info.particles.toLocaleString()} carbon points · ` +
-              `${shifu.info.solidTris.toLocaleString()} solid tris`;
+              `beam · shifu ${shifu.info.meshes} meshes · ` +
+              `${shifu.info.triangles.toLocaleString()} tris · native materials`;
           }
         })
         .catch((err) => {
@@ -658,11 +856,25 @@ import { TRACK_VH } from '../lib/stops';
           heroSub.style.opacity = String(1 - k * k);
         }
 
-        // HUD column tracks the 3D blueprint it belongs to: present across the
-        // reading, gone before the threshold.
-        if (blueprintHud) {
-          const fade = Math.max(0, Math.min(1, (DIVE.start - 0.35 - svh) / 0.8));
-          blueprintHud.style.opacity = String(fade * fade * (3 - 2 * fade));
+        // Where the portal is aiming. Recomputed every frame rather than
+        // captured on click, because the stop's own reveal animation is still
+        // moving the group while the portal runs — a captured point would be
+        // stale by the time the camera arrived.
+        const stopHandle =
+          detail.stopId === 'nomad'
+            ? (window as any).__nomadStop
+            : detail.stopId === 'shifu'
+              ? (window as any).__shifuStop
+              : null;
+        if (stopHandle) {
+          const g = stopHandle.group;
+          (window as any).__detailTarget = {
+            x: g.position.x,
+            y: g.position.y,
+            z: g.position.z,
+            // Frame the whole model with a little air around it.
+            dist: Math.max(3, stopHandle.radius * 2.1),
+          };
         }
 
         // "Welcome." belongs to the white plateau and nowhere else. Keyed to

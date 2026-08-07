@@ -20,6 +20,7 @@
 import type { Vector2 } from 'three';
 import { STOPS, descent, focusAt, diveAt, DIVE } from '../lib/stops';
 import { warp } from '../lib/warp';
+import { detail, portalPeak } from '../lib/detail';
 
 interface StageApi {
   THREE: typeof import('three');
@@ -67,6 +68,14 @@ const FLASH_LEVEL = 16;
 const PUMP_PERIOD = 3.0;
 const PUMP_SPAN = 150;
 const PUMP_GAIN = 2.6;
+
+// ---- portal ----------------------------------------------------------------
+/** Matches the PerspectiveCamera constructed in Scene.astro. */
+const BASE_FOV = 50;
+/** Added at the midpoint of the transition — the tunnel-vision kick. */
+const PORTAL_FOV_KICK = 42;
+/** Resting FOV inside detail mode: slightly tighter, for product inspection. */
+const DETAIL_FOV = 38;
 
 const DUST_COUNT = 2600;
 /** Dust wraps within this Y window around the camera, so it is always present. */
@@ -596,6 +605,8 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
 
   const _dir = new THREE.Vector3();
   const _look = new THREE.Vector3();
+  const _portalPos = new THREE.Vector3();
+  const _portalLook = new THREE.Vector3();
 
   const damp = (a: number, b: number, l: number, dt: number) =>
     a + (b - a) * (1 - Math.exp(-l * dt));
@@ -710,18 +721,48 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     const px = (reduced ? 0 : api.pointer.x) * sway;
     const py = (reduced ? 0 : api.pointer.y) * sway;
 
-    camera.position.set(px * 1.4, camY + py * 0.9, camZ);
+    // ---- portal / detail mode ------------------------------------------------
+    // Camera authority is handed over progressively rather than switched. At
+    // progress 1 OrbitControls owns the camera outright and this writes
+    // nothing; below that the scroll-driven pose is blended toward the model,
+    // so entering and leaving are the same interpolation run in opposite
+    // directions and cannot disagree.
+    const dp = detail.progress;
 
-    // Aim slightly below the camera: the eye follows the beam downward into
-    // where the journey is going.
-    //
-    // The dive rotates that gaze horizontal. This is not decoration — it is
-    // what makes the blow-out possible. The beam is built from vertical
-    // billboards, so a camera looking DOWN the axis sees them edge-on and the
-    // frame goes dark exactly when it should go white. Levelling the gaze as
-    // Z closes puts the plane face-on, filling frame with core.
-    _look.set(0, camY - LOOK_AHEAD * (1 - dv), 0);
-    camera.lookAt(_look);
+    if (dp < 0.999) {
+      camera.position.set(px * 1.4, camY + py * 0.9, camZ);
+
+      // Aim slightly below the camera: the eye follows the beam downward into
+      // where the journey is going.
+      //
+      // The dive rotates that gaze horizontal. This is not decoration — it is
+      // what makes the blow-out possible. The beam is built from vertical
+      // billboards, so a camera looking DOWN the axis sees them edge-on and the
+      // frame goes dark exactly when it should go white. Levelling the gaze as
+      // Z closes puts the plane face-on, filling frame with core.
+      _look.set(0, camY - LOOK_AHEAD * (1 - dv), 0);
+      camera.lookAt(_look);
+
+      if (dp > 0.0005) {
+        const target = (window as any).__detailTarget;
+        if (target) {
+          // Push in toward the model.
+          _portalPos.set(target.x, target.y, target.z + target.dist);
+          camera.position.lerp(_portalPos, dp);
+          _look.lerp(_portalLook.set(target.x, target.y, target.z), dp);
+          camera.lookAt(_look);
+        }
+      }
+    }
+
+    // FOV widens hard mid-transition and settles back — tunnel vision belongs
+    // to the travel, not to the resting inspection view.
+    const peak = portalPeak(dp);
+    const fov = BASE_FOV + peak * PORTAL_FOV_KICK + dp * (DETAIL_FOV - BASE_FOV) * 0.35;
+    if (Math.abs(camera.fov - fov) > 0.01) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
 
     dustMat.uniforms.uCamY.value = camY;
     // The solitary crest sweeps relative to the camera, so it needs to know
@@ -732,7 +773,10 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // accelerates toward a continuous strobe running down the column — the
     // beam's own way of expressing speed. Span widens with it so the crests
     // stay separated instead of collapsing into a flat glow.
-    const wv = warp.value;
+    // Whichever is stronger. The portal and the nav warp are two routes to the
+    // same sensation, so they share one speed term rather than stacking into a
+    // double-speed strobe when a portal is opened mid-warp.
+    const wv = Math.max(warp.value, peak);
     shared.uPumpPeriod.value = PUMP_PERIOD / (1 + wv * 11);
     shared.uPumpSpan.value = PUMP_SPAN * (1 + wv * 1.4);
     shared.uPumpGain.value = PUMP_GAIN * (1 + wv * 0.8);

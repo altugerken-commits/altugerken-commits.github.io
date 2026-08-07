@@ -194,6 +194,7 @@ export interface StarfieldHandle {
 }
 
 import { warp } from '../lib/warp';
+import { detail, portalPeak } from '../lib/detail';
 
 export function initStarfield(api: any, beam: any): StarfieldHandle {
   const { THREE, scene } = api;
@@ -363,7 +364,8 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
 
     // Streaks exist only in transit. Skipping the draw entirely when idle keeps
     // 26k extra line vertices off the ordinary frame.
-    const w = warp.value;
+    // Nav warp and the portal share one speed term — see light-beam.
+    const w = Math.max(warp.value, portalPeak(detail.progress));
     streakUniforms.uWarp.value = w;
     streaks.visible = w > 0.002;
     // Points dim as the streaks take over, so the field does not read as twice
