@@ -13,6 +13,7 @@
 // never here.
 
 import { STOPS, stopDepth } from '../lib/stops';
+import { matteify } from '../lib/matte';
 
 const NOMAD = STOPS.find((s) => s.id === 'nomad')!;
 
@@ -26,6 +27,7 @@ export interface NomadHandle {
   /** Bounding-sphere radius after fit — the portal uses it to frame the model. */
   radius: number;
   meshes: number;
+  materials: string[];
   dispose: () => void;
 }
 
@@ -46,6 +48,8 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
   gltf.scene.traverse((c: any) => {
     if (c.isMesh) meshes++;
   });
+
+  const matte = matteify(gltf.scene);
 
   // Fit at load rather than in the file, so the source asset stays untouched.
   const box = new THREE.Box3().setFromObject(gltf.scene);
@@ -89,6 +93,7 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
     group,
     radius,
     meshes,
+    materials: matte.names,
     dispose: () => {
       stop();
       group.removeFromParent();

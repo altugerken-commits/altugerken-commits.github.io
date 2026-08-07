@@ -14,6 +14,7 @@
 // was never modified, so restoring it is a deletion, not a rebuild.
 
 import { STOPS, stopDepth } from '../lib/stops';
+import { matteify } from '../lib/matte';
 
 const SHIFU = STOPS.find((s) => s.id === 'shifu')!;
 
@@ -30,7 +31,7 @@ const OFFSET_X = 1.55;
 export interface ShifuHandle {
   group: any;
   radius: number;
-  info: { meshes: number; triangles: number };
+  info: { meshes: number; triangles: number; materials: string[] };
   dispose: () => void;
 }
 
@@ -46,6 +47,8 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
   const { gltf, meshes, triangles } = await api.loadGLB(
     '/models/shifu-26-bodywork.opt.glb',
   );
+
+  const matte = matteify(gltf.scene);
 
   // Fit and centre on load. The asset arrives in its own units and about its
   // own origin — the earlier Blender-normalised export is gone, and depending
@@ -87,7 +90,7 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
   return {
     group,
     radius,
-    info: { meshes, triangles },
+    info: { meshes, triangles, materials: matte.names },
     dispose: () => {
       stop();
       group.removeFromParent();

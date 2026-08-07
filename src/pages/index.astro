@@ -40,9 +40,43 @@ import { TRACK_VH } from '../lib/stops';
     <div class="about__contact">
       <p class="hud about__label">Contact</p>
       <ul class="about__links hud">
-        <li><a href="mailto:altug.erken@ozu.edu.tr">altug.erken@ozu.edu.tr</a></li>
-        <li><a href="https://www.linkedin.com/" rel="me noopener" target="_blank">LinkedIn</a></li>
-        <li><a href="https://github.com/altugerken-commits" rel="me noopener" target="_blank">GitHub</a></li>
+        <li>
+          <a
+            href="https://www.linkedin.com/in/altuğ-erken-7b4277305/"
+            rel="me noopener"
+            target="_blank"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="3" y="3" width="18" height="18" rx="2.5" />
+              <path d="M7.2 10.4v6.2M7.2 7.4v.02" />
+              <path d="M11.4 16.6v-6.2M11.4 13.1c0-1.5 1-2.7 2.6-2.7s2.6 1.1 2.6 2.7v3.5" />
+            </svg>
+            <span>LinkedIn</span>
+          </a>
+        </li>
+        <li>
+          <a
+            href="https://www.instagram.com/_altugerken_/?hl=tr"
+            rel="me noopener"
+            target="_blank"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <circle cx="12" cy="12" r="4" />
+              <path d="M17.2 6.8v.02" />
+            </svg>
+            <span>Instagram</span>
+          </a>
+        </li>
+        <li>
+          <a href="mailto:altug.erken@ozu.edu.tr">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="2.8" y="5" width="18.4" height="14" rx="2.5" />
+              <path d="m3.4 7.2 8.6 6 8.6-6" />
+            </svg>
+            <span>altug.erken@ozu.edu.tr</span>
+          </a>
+        </li>
       </ul>
       <p class="about__cue display">Keep scrolling.</p>
     </div>
@@ -316,17 +350,38 @@ import { TRACK_VH } from '../lib/stops';
     padding: 0;
   }
   .about__links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7em;
     color: color-mix(in oklab, var(--fg) 78%, transparent);
     text-decoration: none;
+    transition: color 0.4s var(--ease);
+  }
+  /* The rule sits under the label only, not under the icon — an underline that
+     ran beneath the glyph would read as a boxed button. */
+  .about__links a span {
     border-bottom: 1px solid color-mix(in oklab, var(--fg) 22%, transparent);
     padding-bottom: 0.15em;
-    transition: color 0.4s var(--ease), border-color 0.4s var(--ease);
+    transition: border-color 0.4s var(--ease);
+  }
+  .about__links a svg {
+    width: 1.15em;
+    height: 1.15em;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.75;
+    transition: opacity 0.4s var(--ease);
   }
   .about__links a:hover,
-  .about__links a:focus-visible {
-    color: var(--fg);
-    border-color: var(--fg);
-  }
+  .about__links a:focus-visible { color: var(--fg); }
+  .about__links a:hover span,
+  .about__links a:focus-visible span { border-color: var(--fg); }
+  .about__links a:hover svg,
+  .about__links a:focus-visible svg { opacity: 1; }
   .about__cue {
     margin: clamp(0.5rem, 2vh, 1.5rem) 0 0;
     font-size: clamp(1rem, 1.5vw, 1.35rem);
@@ -570,6 +625,14 @@ import { TRACK_VH } from '../lib/stops';
 
   /* ---- detail mode ------------------------------------------------------- */
 
+  /* Everything that belongs to the scrolling site steps aside while a product
+     is being inspected. This is driven from the frame loop, NOT from a
+     `html.is-detail` CSS rule: an earlier attempt used `:global(html.is-detail)
+     .hero`, and Astro's scoped-style compilation did not match it — measured
+     opacity stayed at 1 with the class correctly set. Frame-driven is also how
+     the stop panels already work, so there is one authority over opacity
+     instead of a CSS rule racing per-frame inline styles. */
+
   .detail {
     position: fixed;
     inset: 0;
@@ -770,7 +833,14 @@ import { TRACK_VH } from '../lib/stops';
     if (!detailEl) return;
     if (s.mode === 'active') {
       detailEl.hidden = false;
-      requestAnimationFrame(() => detailEl.classList.add('is-open'));
+      // Force a reflow so the browser registers the un-hidden state before the
+      // class flips, which is what makes the opacity transition actually run.
+      // This was a requestAnimationFrame callback: rAF does not fire in a
+      // throttled or hidden tab, so the overlay could be revealed with its
+      // opacity permanently stuck at 0. A synchronous reflow has no such
+      // dependency.
+      void detailEl.offsetHeight;
+      detailEl.classList.add('is-open');
     } else {
       detailEl.classList.remove('is-open');
       if (s.mode === 'idle') {
@@ -845,15 +915,33 @@ import { TRACK_VH } from '../lib/stops';
 
       if (probe) probe.textContent = 'beam · live · loading shifu';
 
+      // Everything belonging to the scrolling site, dimmed together while a
+      // product is being inspected.
+      const siteChrome = [
+        document.querySelector<HTMLElement>('.hero'),
+        document.querySelector<HTMLElement>('.about'),
+        document.querySelector<HTMLElement>('.nav'),
+        document.querySelector<HTMLElement>('.probe'),
+      ].filter(Boolean) as HTMLElement[];
+
       onFrame(() => {
         const svh = view.scrollY / Math.max(1, view.vh);
+
+        // 1 on the normal site, 0 once the portal has fully opened. Squared so
+        // the page is out of the way early in the transition rather than
+        // lingering under the FOV distortion.
+        const siteFade = Math.pow(1 - detail.progress, 2);
+        for (const el of siteChrome) {
+          el.style.opacity = String(siteFade);
+          el.style.pointerEvents = siteFade < 0.05 ? 'none' : '';
+        }
 
         // Subtitle: full at rest, gone by 0.15vh. Authored in viewport-heights
         // to match the brief directly rather than in normalised progress,
         // which would change meaning every time the track length changes.
         if (heroSub) {
           const k = Math.min(1, svh / 0.15);
-          heroSub.style.opacity = String(1 - k * k);
+          heroSub.style.opacity = String((1 - k * k) * siteFade);
         }
 
         // Where the portal is aiming. Recomputed every frame rather than
@@ -897,7 +985,10 @@ import { TRACK_VH } from '../lib/stops';
           // ungated the panel would fade in BEFORE the threshold, be wiped by
           // the white-out, then fade in a second time. revealRef keeps it shut
           // until the camera is coming back out.
-          const eased = f * f * (3 - 2 * f) * beam.revealRef.value;
+          // siteFade folded in here rather than fighting it: the panel's
+          // opacity already has a per-frame owner, so a competing CSS rule
+          // would simply be overwritten on the next tick.
+          const eased = f * f * (3 - 2 * f) * beam.revealRef.value * siteFade;
           el.style.opacity = String(eased);
           el.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
           // Tracked in JS, not read back off the attribute. Reading the

@@ -72,8 +72,15 @@ const PUMP_GAIN = 2.6;
 // ---- portal ----------------------------------------------------------------
 /** Matches the PerspectiveCamera constructed in Scene.astro. */
 const BASE_FOV = 50;
-/** Added at the midpoint of the transition — the tunnel-vision kick. */
-const PORTAL_FOV_KICK = 42;
+/**
+ * Added at the midpoint of the transition — the tunnel-vision kick.
+ * 50 + 92 puts the peak at 142°, which is past the point where straight lines
+ * visibly bow. That distortion IS the effect: at 42 it read as a fast zoom.
+ */
+const PORTAL_FOV_KICK = 92;
+/** Bloom piled on at the peak, on top of whatever the dive is already doing. */
+const PORTAL_BLOOM_STRENGTH = 2.4;
+const PORTAL_BLOOM_RADIUS = 0.55;
 /** Resting FOV inside detail mode: slightly tighter, for product inspection. */
 const DETAIL_FOV = 38;
 
@@ -697,6 +704,19 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // entire frame, which is what turns a bright core into a full white field.
     bloom.threshold = BLOOM_THRESHOLD * (1 - effDive);
 
+    // Portal spike. Added on top of the dive's own bloom rather than replacing
+    // it, and driven by the same peak curve as the FOV so the blow-out and the
+    // distortion crest together — a spike that trailed the FOV would read as
+    // two separate events instead of one tear.
+    const portalPk = portalPeak(detail.progress);
+    if (portalPk > 0.0005) {
+      bloom.strength += portalPk * PORTAL_BLOOM_STRENGTH;
+      bloom.radius += portalPk * PORTAL_BLOOM_RADIUS;
+      // Dropping the threshold is what lets the spike catch the whole frame
+      // rather than only the beam, so the blur is global for that instant.
+      bloom.threshold *= 1 - portalPk * 0.85;
+    }
+
     // The flash carries the last of the white on its own, so the beam is free
     // to disappear beneath it.
     //
@@ -714,6 +734,17 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     flashPass.uniforms.uRise.value = Math.pow(effDive, 0.72);
     flashPass.uniforms.uLevel.value = flashAmt * FLASH_LEVEL;
     flashPass.enabled = flashAmt > 0.0004;
+
+    // Portal contribution to the flash, applied AFTER the dive has written its
+    // own values — folding it into the bloom block above would be overwritten
+    // by these two lines a moment later.
+    if (portalPk > 0.0005) {
+      // Squared so the white only really arrives at the very crest, leaving
+      // the approach as distortion rather than as a wash.
+      flashPass.uniforms.uLevel.value += portalPk * portalPk * 3.4;
+      flashPass.uniforms.uRise.value = Math.max(flashPass.uniforms.uRise.value, portalPk);
+      flashPass.enabled = flashPass.enabled || portalPk > 0.02;
+    }
 
     // Pointer sway is suppressed through the dive — at 0.3 units from the axis
     // it would swing the camera through the beam rather than around it.
@@ -757,7 +788,7 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
 
     // FOV widens hard mid-transition and settles back — tunnel vision belongs
     // to the travel, not to the resting inspection view.
-    const peak = portalPeak(dp);
+    const peak = portalPk;
     const fov = BASE_FOV + peak * PORTAL_FOV_KICK + dp * (DETAIL_FOV - BASE_FOV) * 0.35;
     if (Math.abs(camera.fov - fov) > 0.01) {
       camera.fov = fov;

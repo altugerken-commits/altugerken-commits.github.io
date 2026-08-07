@@ -47,27 +47,31 @@
 
       const scene = new THREE.Scene();
 
-      // ---- neutral studio environment --------------------------------------
-      // The scene carries no lights on purpose — the beam and the galaxy are
-      // emissive and light nothing. But the product models render with their
-      // native GLTF MeshStandardMaterials, and a standard material with no
-      // light and no environment resolves to black. A PMREM environment is the
-      // way to light them WITHOUT touching their materials: no custom shader,
-      // no override, no per-fragment change, just an image-based light the
-      // untouched material samples on its own.
-      let envRT: any = null;
-      const buildEnvironment = async () => {
-        const { RoomEnvironment } = await import(
-          'three/examples/jsm/environments/RoomEnvironment.js'
-        );
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-        envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
-        scene.environment = envRT.texture;
-        // Deliberately NOT scene.background — the void stays black and the
-        // environment only ever shows up as reflection and diffuse fill.
-        pmrem.dispose();
-      };
+      // ---- flat product lighting -------------------------------------------
+      // A PMREM RoomEnvironment used to live here. It lit the models correctly
+      // but it is an IMAGE of a room — every glossy material sampled it and
+      // produced hard specular hotspots and window reflections, which is
+      // exactly the glare that had to die.
+      //
+      // Two punctual lights instead. An environment map cannot be made matte
+      // by tuning; a light rig can. Ambient does almost all the work so the
+      // result is near-flat, and the directional exists only to keep the form
+      // from reading as a silhouette. No shadows: shadow maps would add
+      // contrast, which is the opposite of the brief.
+      const ambient = new THREE.AmbientLight(0xffffff, 2.6);
+      scene.add(ambient);
+
+      const key = new THREE.DirectionalLight(0xffffff, 1.15);
+      key.position.set(2.5, 4, 3);
+      key.castShadow = false;
+      scene.add(key);
+
+      // A second, dimmer light from below-behind lifts the underside so the
+      // lower half of a product does not fall to black.
+      const fill = new THREE.DirectionalLight(0xffffff, 0.45);
+      fill.position.set(-3, -2, -2.5);
+      fill.castShadow = false;
+      scene.add(fill);
 
       // 50° vertical FOV and a deep far plane: enough perspective for depth
       // travel to read, without the fisheye that comes from going much wider.
@@ -121,9 +125,6 @@
           gltfLoader.setDRACOLoader(draco);
           gltfLoader.setMeshoptDecoder(MeshoptDecoder);
         }
-        // Built lazily on the first model load: nothing else in the scene needs
-        // it, and generating a PMREM costs a render pass.
-        if (!envRT) await buildEnvironment();
         const gltf: any = await gltfLoader.loadAsync(url);
         let meshes = 0;
         let triangles = 0;
