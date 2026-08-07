@@ -58,17 +58,26 @@
       // result is near-flat, and the directional exists only to keep the form
       // from reading as a silhouette. No shadows: shadow maps would add
       // contrast, which is the opposite of the brief.
-      const ambient = new THREE.AmbientLight(0xffffff, 2.6);
+      // Intensities are bounded by the BLOOM THRESHOLD, not by taste. Bloom
+      // lifts anything above ~0.8 linear, so a diffuse surface lit past that
+      // gains a soft halo — which reads as glare just as much as a specular
+      // hotspot does, even though the material has no specular term at all.
+      // Total light is held near 1.0 so albedo * light stays under the
+      // threshold for every material in these assets.
+      const ambient = new THREE.AmbientLight(0xffffff, 0.72);
       scene.add(ambient);
 
-      const key = new THREE.DirectionalLight(0xffffff, 1.15);
+      // Diffuse-only shading needs *some* direction or the products read as
+      // flat cut-outs. Kept low, and shadowless: shadow maps add contrast,
+      // which is the opposite of the brief.
+      const key = new THREE.DirectionalLight(0xffffff, 0.34);
       key.position.set(2.5, 4, 3);
       key.castShadow = false;
       scene.add(key);
 
       // A second, dimmer light from below-behind lifts the underside so the
       // lower half of a product does not fall to black.
-      const fill = new THREE.DirectionalLight(0xffffff, 0.45);
+      const fill = new THREE.DirectionalLight(0xffffff, 0.16);
       fill.position.set(-3, -2, -2.5);
       fill.castShadow = false;
       scene.add(fill);

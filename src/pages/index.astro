@@ -741,7 +741,7 @@ import { TRACK_VH } from '../lib/stops';
   import { initShifuStop } from '../scenes/shifu-stop';
   import { initInspect } from '../scenes/inspect';
   import { onFrame, view } from '../lib/loop';
-  import { warpTo } from '../lib/warp';
+  import { warpTo, warp } from '../lib/warp';
   import { detail, enterDetail, exitDetail, onDetailChange } from '../lib/detail';
 
   const probe = document.querySelector<HTMLElement>('[data-probe]');
@@ -1017,7 +1017,12 @@ import { TRACK_VH } from '../lib/stops';
         if (threshold) {
           const d = beam.diveRef.value;
           const k = Math.max(0, Math.min(1, (d - 0.82) / 0.16));
-          threshold.style.opacity = String(k * k * (3 - 2 * k));
+          // Hard-zeroed during a warp. A Home or Search jump flies THROUGH the
+          // dive window at speed, so the plateau is crossed in a few frames and
+          // the card would strobe on and off in passing. Keyed to warp.active
+          // rather than to warp.value: the value dips at both ends of the
+          // envelope, which would let the card flicker back in mid-flight.
+          threshold.style.opacity = warp.active ? '0' : String(k * k * (3 - 2 * k));
         }
 
         // The scene is the single authority on stop presence — the panel reads

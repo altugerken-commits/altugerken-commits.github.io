@@ -51,11 +51,17 @@ export async function initNomadStop(api: any, beam: any): Promise<NomadHandle> {
     if (c.isMesh) meshes++;
   });
 
-  // Absolute matte, not the shared default. This model still had a glossy top
-  // ("Plastic - Glossy (Black)" on the screen bezel, "Stainless Steel -
-  // Brushed" on the lid and body), and 0.92/0.08 left enough specular for a
-  // hotspot. Fully diffuse, zero metal.
-  const matte = matteify(gltf.scene, { minRoughness: 1.0, maxMetalness: 0 });
+  const matte = matteify(gltf.scene, THREE);
+
+  // Stand it the right way up. The FBX was authored lying on its back; the
+  // Blender pass rotated it onto its long axis but landed it inverted, lid
+  // down. A half turn about X corrects it.
+  //
+  // Applied BEFORE the bounding box is measured — Box3.setFromObject reads the
+  // world matrix, so measuring first and rotating after would centre the model
+  // on the wrong point and the fit would be computed against a stale extent.
+  gltf.scene.rotation.x = Math.PI;
+  gltf.scene.updateMatrixWorld(true);
 
   // Fit at load rather than in the file, so the source asset stays untouched.
   const box = new THREE.Box3().setFromObject(gltf.scene);

@@ -50,7 +50,7 @@ export async function initShifuStop(api: any, beam: any): Promise<ShifuHandle> {
     '/models/shifu-26-bodywork.opt.glb',
   );
 
-  const matte = matteify(gltf.scene);
+  const matte = matteify(gltf.scene, THREE);
 
   // Fit and centre on load. The asset arrives in its own units and about its
   // own origin — the earlier Blender-normalised export is gone, and depending

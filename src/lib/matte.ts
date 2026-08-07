@@ -1,75 +1,84 @@
-// KILL THE GLARE.
+// KILL THE GLARE — BY CONSTRUCTION, NOT BY TUNING.
 //
-// The products ship native GLTF materials, which Blender exports as
-// MeshPhysicalMaterial — and physical materials carry a whole stack of
-// specular lobes beyond plain roughness: clearcoat, sheen, iridescence,
-// specular intensity, transmission. Raising roughness alone does not silence
-// them, because clearcoat has its OWN roughness and sits on top of the base
-// layer regardless of what the base is doing.
+// Three rounds of tuning MeshPhysicalMaterial did not get there: roughness 1,
+// metalness 0, clearcoat 0, specularIntensity 0, envMapIntensity 0 — and the
+// brewer's lid still caught a highlight. The reason is that a physical
+// material ALWAYS evaluates a specular BRDF. Roughness 1 spreads the lobe over
+// the hemisphere, it does not remove it, so a bright enough light still leaves
+// a broad sheen on a curved surface facing it.
 //
-// So this flattens every lobe explicitly rather than tuning one number and
-// hoping. It is applied per model after load.
+// So the material is replaced rather than adjusted. MeshLambertMaterial has no
+// specular term in its shader at all — it is diffuse only. There is no value
+// of any parameter that can produce a highlight, which makes "zero glare" a
+// property of the material model instead of a tuning that can drift.
 //
-// Note the tension, deliberately: the brief also asks for untouched native
-// materials. These two cannot both be fully true. Geometry, material identity,
-// names and base colours are all preserved — only the reflectance properties
-// are flattened, and only enough to remove specular response.
+// Lambert keeps directional shading, so the products still read as solid form
+// rather than as flat silhouettes. That is why it is used in preference to
+// MeshBasicMaterial, which is unlit and would render every surface at exactly
+// its albedo — a paper cut-out.
+//
+// What is preserved: geometry, material name, base colour, opacity, side and
+// vertex colours. What is discarded: every reflectance parameter, all of which
+// existed only to describe specular response.
 
 export interface MatteOptions {
-  /** Floor for roughness. 1 is fully diffuse. */
-  minRoughness?: number;
-  /** Ceiling for metalness. Metal without an environment reads black. */
-  maxMetalness?: number;
+  /** Multiplier on the source albedo. Below 1 darkens the product overall. */
+  tone?: number;
 }
 
 export function matteify(
   root: any,
+  THREE: any,
   opts: MatteOptions = {},
-): { materials: number; names: string[] } {
-  const minRoughness = opts.minRoughness ?? 0.92;
-  const maxMetalness = opts.maxMetalness ?? 0.08;
+): { materials: number; names: string[]; converted: number } {
+  const tone = opts.tone ?? 1;
 
-  const seen = new Set<any>();
+  const cache = new Map<any, any>();
   const names: string[] = [];
+  let converted = 0;
+
+  const convert = (src: any) => {
+    if (!src) return src;
+    if (cache.has(src)) return cache.get(src);
+
+    // Already diffuse-only: leave it be.
+    if (src.isMeshLambertMaterial || src.isMeshBasicMaterial) {
+      cache.set(src, src);
+      return src;
+    }
+
+    const lambert = new THREE.MeshLambertMaterial({
+      name: src.name,
+      color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
+      map: src.map ?? null,
+      transparent: src.transparent ?? false,
+      opacity: src.opacity ?? 1,
+      side: src.side,
+      vertexColors: src.vertexColors ?? false,
+      // Emissive is a self-lit term, not a reflection, so it survives — but
+      // nothing in these assets uses it.
+      emissive: src.emissive ? src.emissive.clone() : new THREE.Color(0x000000),
+    });
+
+    if (tone !== 1) lambert.color.multiplyScalar(tone);
+
+    // Reflections are the thing being removed; an env map would reintroduce
+    // exactly what the swap is for.
+    lambert.envMap = null;
+    lambert.needsUpdate = true;
+
+    cache.set(src, lambert);
+    names.push(src.name || '(unnamed)');
+    converted++;
+    return lambert;
+  };
 
   root.traverse((c: any) => {
     if (!c.isMesh || !c.material) return;
-    const mats = Array.isArray(c.material) ? c.material : [c.material];
-
-    for (const m of mats) {
-      if (!m || seen.has(m)) continue;
-      seen.add(m);
-      names.push(m.name || '(unnamed)');
-
-      // No environment contribution at all — this is the single biggest source
-      // of "glossy glare" once any env map is present.
-      if ('envMapIntensity' in m) m.envMapIntensity = 0;
-      if ('envMap' in m) m.envMap = null;
-
-      // Base layer to diffuse.
-      if ('roughness' in m && typeof m.roughness === 'number') {
-        m.roughness = Math.max(m.roughness, minRoughness);
-      }
-      if ('metalness' in m && typeof m.metalness === 'number') {
-        m.metalness = Math.min(m.metalness, maxMetalness);
-      }
-
-      // Physical-only lobes. Each of these produces a highlight independently
-      // of roughness, so each has to be zeroed by name.
-      if ('clearcoat' in m) m.clearcoat = 0;
-      if ('clearcoatRoughness' in m) m.clearcoatRoughness = 1;
-      if ('specularIntensity' in m) m.specularIntensity = 0;
-      if ('sheen' in m) m.sheen = 0;
-      if ('iridescence' in m) m.iridescence = 0;
-      if ('transmission' in m) m.transmission = 0;
-      if ('reflectivity' in m) m.reflectivity = 0;
-
-      // Flat shading would fracture the decimated CAD surfaces into visible
-      // facets, so it stays off; smooth normals with no specular is the look.
-      m.flatShading = false;
-      m.needsUpdate = true;
-    }
+    c.material = Array.isArray(c.material)
+      ? c.material.map(convert)
+      : convert(c.material);
   });
 
-  return { materials: seen.size, names };
+  return { materials: cache.size, names, converted };
 }
