@@ -1,97 +1,390 @@
 @import "tailwindcss";
 
 /* ============================================================
-   BLANK SLATE — WebGL pivot.
+   SOFT STRUCTURALISM — the design system.
 
-   The gallery design system is gone: the HUD primitives, the
-   editorial serif voice, the blue-black ladder, the bracket
-   corner markers, the z-index scale, the light theme, the 95/5
-   ratio. All of it is intact on `master` at ee726b5 if any part
-   is ever wanted back.
+   Direction rolled from high-end-visual-design §3: Vibe archetype
+   "Soft Structuralism" (silver-grey ground, massive grotesk,
+   highly diffused ambient shadows), Layout archetype "Editorial
+   Split" composed with "Asymmetrical Bento".
 
-   What remains is only what a full-bleed WebGL stage needs to
-   exist. Every visual decision from here is yours to make.
+   The brief came from the client's own words: clean geometries,
+   monochrome palettes, dead-front interfaces, raw materiality.
+   A warm neutral studio is that, and it is also the correct
+   environment for photographing a physical object — which is what
+   this site is for.
+
+   The previous cosmic direction (beam, nebula, starfield, portal)
+   is intact on `feat/webgl-pivot` at aff5c58.
    ============================================================ */
 
 @theme {
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---- ground & ink -----------------------------------------------------
+     One gray family, warm-tinted throughout. Never pure #FFF and never pure
+     #000: a flat 255 ground blows out against product renders, and pure black
+     ink on warm paper reads blue by simultaneous contrast. */
+  --color-paper:    #f4f3f0;  /* the ground */
+  --color-surface:  #fafaf8;  /* raised — cards, floating chrome */
+  --color-sunken:   #eae9e4;  /* recessed — wells, insets */
+  --color-hairline: #dedcd6;  /* the only border colour */
 
-  /* Elegant serif + technical mono. Display carries every headline and the
-     greeting; mono carries metadata, labels and HUD. The brutalist grotesk it
-     replaces was chosen for a typographic mask that no longer exists. */
-  --font-display: var(--font-display), Georgia, "Times New Roman", serif;
+  --color-ink:   #161513;  /* headings, primary text */
+  --color-ink-2: #45433e;  /* body copy */
+  --color-ink-3: #6e6b64;  /* secondary, captions */
+  --color-ink-4: #9a968d;  /* labels, disabled, hairline text */
+
+  /* ONE accent. Desaturated oxide orange (HSL 20°, 58%, 44%) — a workshop
+     colour: safety orange aged down to clay. It references machine shops and
+     Formula Student rather than a product category. Saturation is held under
+     the 80% ceiling so it sits inside the neutral family instead of screaming
+     out of it. Used only for: eyebrow rules, the active nav state, focus, and
+     exactly one CTA per view. */
+  --color-oxide:      #b0562f;
+  --color-oxide-soft: #d9885f;
+  --color-oxide-wash: #f6ece7;
+
+  /* ---- type -------------------------------------------------------------
+     Geist and Geist Mono. Both verified to carry latin-ext (ğ is U+011F,
+     inside U+0100–02BA), which is non-negotiable: without it "Altuğ" and
+     "Özyeğin" render the ğ in a fallback face mid-word.
+
+     Cormorant Garamond is gone with the editorial direction it belonged to.
+     Soft Structuralism runs on grotesk, and a high-contrast Garamond at
+     display weight would fight the machined geometry of the products. */
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- easing -----------------------------------------------------------
+     No `linear`, no `ease-in-out`. These three are the shared vocabulary the
+     animation skills expect; everything else must extend them rather than
+     invent a parallel set. */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ---- duration ---------------------------------------------------------
+     Budgets from the animation gate: UI under 300ms, marketing may run long. */
+  --dur-press:  140ms;
+  --dur-tip:    180ms;
+  --dur-menu:   220ms;
+  --dur-panel:  380ms;
+  --dur-reveal: 800ms;
+
+  /* ---- elevation --------------------------------------------------------
+     Tinted with the ground's own hue (38,34,28 is the paper's shadow, not
+     black) and spread very wide at very low alpha. Soft Structuralism calls
+     for "unbelievably soft, highly diffused" — the shadow should read as the
+     object displacing light, never as a drawn edge. A single light source,
+     high and slightly forward, so every offset is +Y. */
+  --shadow-1: 0 1px 2px rgba(38, 34, 28, 0.04), 0 2px 8px rgba(38, 34, 28, 0.03);
+  --shadow-2: 0 2px 6px rgba(38, 34, 28, 0.05), 0 12px 32px rgba(38, 34, 28, 0.05);
+  --shadow-3: 0 4px 12px rgba(38, 34, 28, 0.06), 0 24px 64px rgba(38, 34, 28, 0.07);
+  --shadow-float: 0 40px 100px -20px rgba(38, 34, 28, 0.13);
+
+  /* Inner highlight — the top edge of a raised surface catching the light.
+     This is what stops a card reading as a flat rectangle without adding a
+     visible 1px border. */
+  --sheen: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @layer base {
   :root {
-    color-scheme: dark;
-    /* Not pure #000: a hair of lift keeps gradients from banding and stops
-       OLED black-smear on scroll. Trivial to change once you pick a ground. */
-    --bg: #050506;
-    --fg: #f2f2f4;
+    color-scheme: light;
+
+    /* ---- z-index scale --------------------------------------------------
+       Systemic layers only. Nothing in this codebase may use a bare numeric
+       z-index; if something needs to stack, it needs a name here first. */
+    --z-stage:   0;   /* the WebGL canvas */
+    --z-content: 1;   /* document flow above it */
+    --z-grain:   5;   /* film grain over canvas + content, under chrome */
+    --z-chrome:  10;  /* nav, floating controls */
+    --z-overlay: 20;  /* detail-mode panel */
+    --z-modal:   30;  /* menu sheets */
+
+    /* Reading measure. 65ch is the upper bound the audit calls for. */
+    --measure: 62ch;
+    /* Content container. Wide enough for the split, bounded so the layout
+       does not stretch edge-to-edge on an ultrawide display. */
+    --shell: 1440px;
+    --gutter: clamp(1.25rem, 5vw, 5.5rem);
   }
 
   html {
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--color-paper);
+    color: var(--color-ink-2);
     -webkit-text-size-adjust: 100%;
+    /* Anchor jumps should glide, not teleport. */
+    scroll-behavior: smooth;
   }
 
   body {
     margin: 0;
-    font-family: var(--font-mono);
-    /* Spatial scrolling drives a camera; rubber-banding would fight it. */
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    /* The camera is scroll-driven; rubber-banding would fight it. */
     overscroll-behavior: none;
   }
 
-  ::selection { background: var(--fg); color: var(--bg); }
-  :focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+  ::selection {
+    background: var(--color-oxide);
+    color: var(--color-surface);
+  }
 
-  /* The stage owns the viewport. DOM content rides above it in .layer. */
+  /* Visible, offset, and in the accent so it never reads as a browser
+     default. Accessibility requirement, not decoration. */
+  :focus-visible {
+    outline: 2px solid var(--color-oxide);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* The stage owns the viewport. The renderer is created with alpha:true, so
+     the canvas is genuinely transparent and the paper ground above shows
+     through it — the products float on the page rather than inside a box. */
   .stage-canvas {
     position: fixed;
     inset: 0;
     display: block;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    z-index: var(--z-stage);
   }
   .layer {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-content);
   }
 
-  /* Elegant display type. Light weight, generous leading and a whisper of
-     positive tracking — the opposite of the old mask settings (700 weight,
-     0.85 leading, negative tracking, uppercase), which existed to lock stacked
-     lines into a solid block for a stencil to cut through. A high-contrast
-     Garamond needs air, and uppercase would destroy the lowercase shapes that
-     carry its character. */
-  .display {
-    font-family: var(--font-display);
-    font-weight: 300;
-    line-height: 1.06;
-    letter-spacing: 0.005em;
-    font-feature-settings: "liga" 1, "kern" 1;
+  /* ---- type scale -------------------------------------------------------
+     Tracking is size-specific, per apple-design §15: large display type wants
+     negative tracking because letters read further apart as they grow, and
+     small type wants positive. A single letter-spacing value would be wrong
+     at one end or the other. Leading moves inversely to size for the same
+     reason. Hierarchy is built from weight + size + leading as a set. */
+
+  .t-display {
+    font-family: var(--font-sans);
+    font-size: clamp(3rem, 9vw, 8.5rem);
+    font-weight: 500;
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+    text-wrap: balance;
   }
 
-  /* Dense HUD metadata: 10px mono, wide tracking, caps. */
-  .hud {
+  .t-h1 {
+    font-family: var(--font-sans);
+    font-size: clamp(2.25rem, 5.5vw, 4.5rem);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.032em;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  .t-h2 {
+    font-family: var(--font-sans);
+    font-size: clamp(1.6rem, 3vw, 2.6rem);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.022em;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  .t-h3 {
+    font-family: var(--font-sans);
+    font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+    color: var(--color-ink);
+  }
+
+  /* Lead paragraph. Sits between display and body — used once per section. */
+  .t-lead {
+    font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: -0.008em;
+    color: var(--color-ink-2);
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+
+  .t-body {
+    font-size: clamp(1rem, 1.1vw, 1.075rem);
+    font-weight: 400;
+    line-height: 1.62;
+    letter-spacing: 0;
+    color: var(--color-ink-2);
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+
+  /* Technical metadata. Mono, wide tracking, caps, tabular figures — this is
+     the spec-sheet voice, and it is the only place caps are allowed. */
+  .t-label {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 0.6875rem;
     font-weight: 500;
     line-height: 1.2;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    font-variant-ligatures: none;
-    font-feature-settings: "zero" 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-4);
     margin: 0;
   }
 
+  /* Data that will be read and compared. Tabular figures are mandatory: the
+     dimensions and counts on this site sit in columns. */
+  .t-spec {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-3);
+  }
+
+  /* ---- eyebrow ----------------------------------------------------------
+     A microscopic marker preceding a major heading. Not a pill badge — the
+     audit calls pill "New/Beta" badges a cliché, so this is a rule plus a
+     word, which is the drafting-sheet equivalent and matches the products. */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7em;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-oxide);
+  }
+  .eyebrow::before {
+    content: "";
+    width: clamp(1.5rem, 4vw, 3rem);
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+  }
+
+  /* ---- double bezel -----------------------------------------------------
+     Nested enclosure, per high-end-visual-design §4A: an outer tray holding an
+     inner plate, with concentric radii so the curves stay parallel. The inner
+     radius is the outer minus the padding, computed rather than guessed —
+     mismatched radii are what make nested boxes look glued together.
+
+     Deliberately NOT a border + shadow + white background card, which the
+     audit names as the generic look. The tray is a tone shift; the plate
+     carries the sheen. */
+  .bezel {
+    padding: 0.5rem;
+    background: var(--color-sunken);
+    border-radius: 2rem;
+    box-shadow: var(--shadow-1);
+  }
+  .bezel__core {
+    background: var(--color-surface);
+    border-radius: calc(2rem - 0.5rem);
+    box-shadow: var(--sheen), var(--shadow-2);
+  }
+
+  /* ---- film grain -------------------------------------------------------
+     Fixed and pointer-events:none, per the performance guardrail — attached
+     to a scrolling container it would force a continuous GPU repaint. Breaks
+     the digital flatness of large empty paper fields, which is exactly where
+     Soft Structuralism looks sterile without it. */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-grain);
+    pointer-events: none;
+    opacity: 0.032;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---- layout shell -----------------------------------------------------
+     Macro-whitespace: py-24 is the floor, and the scale runs well past it.
+     Bottom padding is optically larger than top — equal values read
+     top-heavy because the heading above already carries its own leading. */
+  .shell {
+    width: 100%;
+    max-width: var(--shell);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  .band {
+    padding-block: clamp(6rem, 14vh, 11rem) clamp(7rem, 16vh, 13rem);
+  }
+
   .sr-only {
-    position: absolute; width: 1px; height: 1px;
-    padding: 0; margin: -1px; overflow: hidden;
-    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* The skip link is invisible until focused, then it lands as a real
+     control. Keyboard users are the only ones who ever see it, so it has to
+     be unmistakable when they do. */
+  .skip {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    z-index: var(--z-modal);
+    padding: 0.75rem 1.25rem;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 0 0 0.75rem 0.75rem;
+    transition: transform var(--dur-menu) var(--ease-out);
+  }
+  .skip:focus-visible {
+    transform: translate(-50%, 0);
+  }
+
+  /* ---- reduced motion ---------------------------------------------------
+     Gentler, not zero. Per apple-design §14, reduced motion means a
+     non-vestibular equivalent — opacity still resolves, so content that
+     reveals on scroll cannot end up permanently invisible. Transform-based
+     travel and any parallax are what actually get dropped. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 150ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
+  }
+
+  /* Frostier and flatter when the user has asked for less transparency. */
+  @media (prefers-reduced-transparency: reduce) {
+    .grain { display: none; }
   }
 }

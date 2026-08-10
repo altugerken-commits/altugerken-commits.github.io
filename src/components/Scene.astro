@@ -1,24 +1,33 @@
 ---
-// THE STAGE — blank.
+// THE STUDIO.
 //
-// This is the engine, kept deliberately empty. It brings up a WebGL2 renderer,
-// a perspective camera positioned for Z-axis travel, a resize handler and a
-// Draco-ready GLB loader, then stops. There is no lighting rig, no material
-// language, no composition — those are design decisions, and they are yours.
+// A WebGL2 renderer, a long-lens camera, a three-source studio rig and a
+// GLB loader. That is the whole engine; staging is the scenes' business.
 //
-// Carried over from the previous build because they were hard-won, not because
-// of how anything looked:
-//   - one clock. Everything registers with lib/loop.ts; nothing owns a private
-//     rAF. Five competing loops is how a "continuous flow" turns into parts
-//     that visibly disagree.
-//   - transition:persist. Component <script> modules do not re-execute after a
-//     ClientRouter swap, so without it the initialised context is replaced by a
-//     blank canvas on the first internal navigation.
-//   - the Draco decoder path, which is what the two existing .glb files in
-//     public/models are compressed with.
+// What changed with the direction, and why:
 //
-// Everything hangs off window.__scene so the next step can attach to it
-// without this file needing to know anything about that scene.
+//   - alpha:true is now load-bearing rather than incidental. The canvas is
+//     genuinely transparent, so the paper ground in CSS shows through it and
+//     the products sit ON the page. Nothing here draws a background; if this
+//     file ever clears to a colour, the illusion dies.
+//
+//   - NO EffectComposer. Bloom belonged to a scene made of emissive light in
+//     a void. On a paper ground bloom is actively wrong — it hazes the page
+//     and lifts the blacks of the product. Rendering direct also deletes the
+//     entire class of bugs that came from render targets and pass ordering.
+//
+//   - NeutralToneMapping, not ACESFilmic. ACES is a film curve: it warms and
+//     desaturates the top end, which is what you want for emissive spectacle
+//     and exactly what you do not want when the job is showing an object's
+//     real material colour on white. Khronos PBR Neutral is built for product
+//     viewing and holds hue as it approaches white.
+//
+//   - The rig is soft and frontal, and the products stay Lambert. Diffuse-only
+//     shading cannot produce a specular hotspot at any brightness, which keeps
+//     the zero-glare guarantee structural rather than a tuning result. It also
+//     happens to be the brief: dead-front, monochrome, raw materiality.
+//
+// Everything hangs off window.__scene.
 ---
 
 <canvas class="stage-canvas" data-stage transition:persist="stage"></canvas>
@@ -39,55 +48,56 @@
         powerPreference: 'high-performance',
       });
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      // ACESFilmic + sRGB so emissive/bloom-heavy scenes have somewhere to go
-      // without clipping. Swap freely once the look is decided.
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.setClearAlpha(0);
+      renderer.toneMapping = THREE.NeutralToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
 
       const scene = new THREE.Scene();
 
-      // ---- flat product lighting -------------------------------------------
-      // A PMREM RoomEnvironment used to live here. It lit the models correctly
-      // but it is an IMAGE of a room — every glossy material sampled it and
-      // produced hard specular hotspots and window reflections, which is
-      // exactly the glare that had to die.
-      //
-      // Two punctual lights instead. An environment map cannot be made matte
-      // by tuning; a light rig can. Ambient does almost all the work so the
-      // result is near-flat, and the directional exists only to keep the form
-      // from reading as a silhouette. No shadows: shadow maps would add
-      // contrast, which is the opposite of the brief.
-      // Lambert has no specular term, so brightness here cannot produce glare
-      // however far it is pushed — the only ceiling is the BLOOM THRESHOLD.
-      // Past it a diffuse surface gains a halo, which reads as glare even
-      // though no highlight exists.
-      //
-      // So the rig is ~3x what it was (total 3.70 against 1.22) and the bloom
-      // threshold was raised to match. The pairing is the point: neither
-      // number is meaningful alone, and raising one without the other brings
-      // the halos straight back.
-      const ambient = new THREE.AmbientLight(0xffffff, 2.15);
-      scene.add(ambient);
+      // ---- the studio rig ---------------------------------------------------
+      // Three sources, all soft, all shadowless. Shadow maps are deliberately
+      // absent: a cast shadow is a hard edge and this direction has none. The
+      // products are grounded instead by a painted contact shadow underneath
+      // them, which is both softer and cheaper (see lib/contact-shadow.ts).
 
-      // Diffuse-only shading needs *some* direction or the products read as
-      // flat cut-outs. Kept low, and shadowless: shadow maps add contrast,
-      // which is the opposite of the brief.
-      const key = new THREE.DirectionalLight(0xffffff, 1.05);
-      key.position.set(2.5, 4, 3);
+      // Hemisphere does the ambient work. Sky is the paper colour and ground is
+      // a half-step down, so the object picks up the room it is actually
+      // sitting in — light from above, a dimmer bounce from the page below.
+      // A flat AmbientLight would light every normal identically and flatten
+      // the form to a silhouette.
+      const sky = new THREE.HemisphereLight(0xffffff, 0xdedcd6, 2.6);
+      scene.add(sky);
+
+      // Key, high and slightly forward-left. This is the only source with
+      // enough authority to describe form, and it is what stops a matte object
+      // reading as a paper cut-out.
+      const key = new THREE.DirectionalLight(0xffffff, 1.35);
+      key.position.set(-2.2, 4.2, 3.4);
       key.castShadow = false;
       scene.add(key);
 
-      // A second, dimmer light from below-behind lifts the underside so the
-      // lower half of a product does not fall to black.
-      const fill = new THREE.DirectionalLight(0xffffff, 0.5);
-      fill.position.set(-3, -2, -2.5);
+      // Fill from the opposite side, roughly a third of key. Enough to open the
+      // shadow side without killing the gradient that key just built.
+      const fill = new THREE.DirectionalLight(0xfff6ee, 0.45);
+      fill.position.set(3.6, 0.4, 2.2);
       fill.castShadow = false;
       scene.add(fill);
 
-      // 50° vertical FOV and a deep far plane: enough perspective for depth
-      // travel to read, without the fisheye that comes from going much wider.
-      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+      // A cool touch from behind-above, to separate the product's top edge from
+      // the paper. On a light ground you cannot rim with brightness the way you
+      // would on black, so this is a very small hue shift rather than a glow.
+      const rim = new THREE.DirectionalLight(0xeef2f6, 0.35);
+      rim.position.set(0.8, 2.6, -3.8);
+      rim.castShadow = false;
+      scene.add(rim);
+
+      // ---- camera -----------------------------------------------------------
+      // 32° vertical FOV — roughly a 90mm lens on full-frame. Product
+      // photography lives in that range because a wide lens bows straight
+      // edges and exaggerates the near face, which on a machined object reads
+      // as a modelling error rather than as perspective.
+      const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 400);
       camera.position.set(0, 0, 12);
 
       const resize = () => {
@@ -116,7 +126,7 @@
         { passive: true },
       );
 
-      // ---- Draco-ready GLB loader ------------------------------------------
+      // ---- GLB loader -------------------------------------------------------
       let gltfLoader: any = null;
       const loadGLB = async (url: string) => {
         if (!gltfLoader) {
@@ -149,7 +159,7 @@
         return { gltf, root: gltf.scene, meshes, triangles: Math.round(triangles) };
       };
 
-      // ---- the tick --------------------------------------------------------
+      // ---- the tick ---------------------------------------------------------
       // Subscribers run before the draw, in registration order. Returning the
       // unsubscribe keeps scene swaps from leaking callbacks.
       type Tick = (t: number, dt: number) => void;
@@ -159,9 +169,6 @@
         return () => tickFns.delete(fn);
       };
 
-      // A scene may take over the draw — the stencil mask renders the world to
-      // a target and composites it through type, so it cannot use the plain
-      // path. Returns a disposer that restores direct rendering.
       let renderOverride: ((t: number, dt: number) => void) | null = null;
       const setRenderOverride = (fn: (t: number, dt: number) => void) => {
         renderOverride = fn;
@@ -175,16 +182,13 @@
         else renderer.render(scene, camera);
       });
 
-      // Post-processing seam: chromatic aberration, glitch and bloom belong in
-      // an EffectComposer that replaces the renderer.render call above. Left
-      // unbuilt on purpose — it is a look decision, not scaffolding.
-
       (window as any).__scene = {
         THREE,
         scene,
         camera,
         renderer,
         pointer,
+        lights: { sky, key, fill, rim },
         view,        // shared scroll progress, written once per frame
         loadGLB,
         onTick,

@@ -20,33 +20,39 @@ export default defineConfig({
 
   fonts: [
     {
-      // Cormorant Garamond — the elegant display face. A Garamond revival with
-      // high stroke contrast, small counters and long, delicate serifs: it
-      // reads as chic and slightly naive at large sizes, which is the opposite
-      // of the Space Grotesk it replaces (that was chosen for a brutalist
-      // typographic mask that no longer exists).
+      // Geist — the grotesk the Soft Structuralism direction runs on, and one
+      // of the two faces both taste skills name explicitly. It replaces
+      // Cormorant Garamond, which belonged to an editorial direction that no
+      // longer exists: a high-contrast Garamond at display weight fights the
+      // machined geometry of the products rather than framing it.
       //
-      // Static weights rather than a variable range: Cormorant Garamond ships
-      // as discrete instances on Google Fonts, and asking for a range silently
-      // falls back to a single weight.
+      // A variable range in one file. Geist ships as a true variable font on
+      // Google Fonts, so 300..700 is a single download covering the whole
+      // scale — Cormorant needed discrete instances because it does not.
       provider: fontProviders.google(),
-      name: 'Cormorant Garamond',
-      cssVariable: '--font-display',
-      weights: ['300', '400', '500', '600'],
-      styles: ['normal', 'italic'],
+      name: 'Geist',
+      cssVariable: '--font-sans',
+      weights: ['300 700'],
+      styles: ['normal'],
       // latin-ext is NON-NEGOTIABLE: g-breve, s-cedilla and dotted-I live in
-      // Latin Extended-A, not in `latin`. Without it "Altuğ" renders the ğ in
-      // a fallback face mid-word.
+      // Latin Extended-A, not in `latin`. Without it "Altuğ" and "Özyeğin"
+      // render the ğ in a fallback face mid-word. Verified against the Google
+      // Fonts CSS before the swap: Geist serves latin-ext covering
+      // U+0100–02BA, and ğ is U+011F.
       subsets: ['latin', 'latin-ext'],
       display: 'swap',
-      fallbacks: ['Georgia', 'Times New Roman', 'serif'],
+      fallbacks: ['ui-sans-serif', 'system-ui', 'sans-serif'],
       optimizedFallbacks: true,
     },
     {
+      // Geist Mono carries the spec-sheet voice: labels, dimensions, counts.
+      // Same superfamily as the display face, so the two share proportions and
+      // the metadata reads as part of the drawing rather than as a foreign
+      // annotation — which is what JetBrains Mono did next to a Garamond.
       provider: fontProviders.google(),
-      name: 'JetBrains Mono',
+      name: 'Geist Mono',
       cssVariable: '--font-mono',
-      weights: ['400 500'], // variable range, single file
+      weights: ['400 500'],
       styles: ['normal'],
       subsets: ['latin', 'latin-ext'],
       display: 'swap',

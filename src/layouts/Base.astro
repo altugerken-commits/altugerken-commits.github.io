@@ -1,15 +1,17 @@
 ---
-// Minimal shell. Head, one font, the clock, the stage. Nothing else.
+// The shell. Head, two faces, the grain, the clock, the stage.
 //
-// Gone with the gallery: the theme toggle and its pre-paint script (there is no
-// light polarity any more), the full-page mask transition, the nav, the cursor
-// and the JSON-LD/OG block's dependence on the old brand card. SEO basics stay
-// because they are infrastructure, not aesthetic.
+// Kept from the previous build because they are engine, not aesthetic:
+//   - ONE clock. Lenis -> gsap.ticker -> ScrollTrigger -> every registered
+//     frame callback. Nothing else may own a rAF. Five competing loops is how
+//     a continuous scroll turns into parts that visibly disagree.
+//   - transition:persist on the canvas. Component <script> modules do not
+//     re-execute after a ClientRouter swap, so without it the initialised
+//     WebGL context is replaced by a blank canvas on the first navigation.
 //
-// The display serif is deliberately NOT loaded. Instrument Serif was the voice
-// of the editorial direction that just got purged, and the reference sites run
-// bold sans plus mono. Type is an open decision — say the word and I will wire
-// whichever face you want through astro.config's Fonts API.
+// Gone with the cosmic direction: the warp navigation (a light-speed streak
+// belongs to a starfield, not to a studio — internal jumps are now a smoothed
+// Lenis scroll) and the dark polarity.
 import { Font } from 'astro:assets';
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
@@ -18,9 +20,9 @@ import Scene from '../components/Scene.astro';
 interface Props { title?: string; description?: string; }
 
 const {
-  title = 'Altug Erken — Industrial Designer',
+  title = 'Altuğ Erken — Industrial Designer',
   description =
-    'Altug Erken (Altuğ Erken) is an industrial designer who turns complex engineering problems into aesthetic, manufacturable objects.',
+    'Altuğ Erken is an industrial design and engineering student at Özyeğin University, working on modular outdoor equipment and Formula Student composite bodywork.',
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://altugerken.com');
@@ -34,11 +36,23 @@ const ogImage = new URL('/og.png', canonical);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonical.href} />
 
+    {/* The ground colour, declared to the browser so the chrome around the
+        page (and the overscroll gutter) matches the paper instead of flashing
+        the default white before CSS lands. */}
+    <meta name="theme-color" content="#f4f3f0" />
+
     <title>{title}</title>
     <meta name="description" content={description} />
 
-    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-sans" preload />
     <Font cssVariable="--font-mono" />
+
+    {/* Scroll reveals start from opacity 0, which is only safe if something is
+        guaranteed to turn them back on. This runs during head parse, before
+        first paint, so the hidden state is only ever authored when JS is
+        confirmed present — with JS off or broken the content simply renders.
+        A CSS-only hidden state has no such guarantee and fails to a blank page. */}
+    <script is:inline>document.documentElement.classList.add('js');</script>
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
@@ -47,12 +61,10 @@ const ogImage = new URL('/og.png', canonical);
     <meta property="og:image" content={ogImage.href} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={ogImage.href} />
-
-    <ClientRouter />
   </head>
 
   <body>
-    <a class="sr-only" href="#main">Skip to content</a>
+    <a class="skip" href="#main">Skip to content</a>
 
     <Scene />
 
@@ -60,42 +72,43 @@ const ogImage = new URL('/og.png', canonical);
       <slot />
     </main>
 
+    {/* Fixed, pointer-events:none, above the content and below the chrome.
+        Large fields of flat paper are where this direction looks sterile;
+        the grain is what gives them a surface. */}
+    <div class="grain" aria-hidden="true"></div>
+
+    <ClientRouter />
+
     <script>
       import gsap from 'gsap';
       import 'gsap/ScrollTrigger';
       import { ScrollTrigger } from 'gsap/ScrollTrigger';
       import Lenis from 'lenis';
       import { runFrame, measureScroll } from '../lib/loop';
-      import { stepWarp } from '../lib/warp';
       import { stepDetail } from '../lib/detail';
 
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      // ONE clock. Lenis -> gsap.ticker -> ScrollTrigger -> every registered
-      // frame callback. Nothing else may own a rAF. Kept from the previous
-      // build because it is engine, and because spatial scrolling makes a
-      // single authoritative scroll value more important, not less.
       gsap.registerPlugin(ScrollTrigger);
 
       let lenis: any = null;
       if (!reduced) {
-        lenis = new Lenis({ lerp: 0.075, wheelMultiplier: 0.85 });
+        lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.9 });
         lenis.on('scroll', ScrollTrigger.update);
       }
-      // Exposed so the warp navigation can drive a programmatic scroll through
+      // Exposed so in-page navigation can drive a programmatic scroll through
       // the SAME smoothing the wheel uses. Animating window.scrollTo instead
       // would fight Lenis for control of scrollY and stutter.
       (window as any).__lenis = lenis;
 
-      // gsap hands the ticker (time, deltaTime, ...) with deltaTime in ms.
-      // measureScroll needs it to differentiate scrollY into a velocity, and to
-      // run the asymmetric energy envelope frame-rate independently.
+      // gsap hands the ticker (time, deltaTime) with deltaTime in ms.
+      // measureScroll needs it to differentiate scrollY into a velocity and to
+      // run its envelope frame-rate independently.
       gsap.ticker.add((t, dtMs) => {
         if (lenis) lenis.raf(t * 1000);
         measureScroll(Math.min(dtMs, 100) / 1000);
         // Advanced before the frame callbacks so every scene reads the same
-        // warp value within a frame.
-        stepWarp(performance.now());
+        // detail progress within a frame.
         stepDetail(performance.now());
         runFrame(t);
       });

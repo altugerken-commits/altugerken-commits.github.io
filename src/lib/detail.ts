@@ -1,11 +1,11 @@
-// DETAIL MODE + THE PORTAL.
+// DETAIL MODE.
 //
 // One shared state object describing whether the site is in free-roam
-// inspection, and how far through the portal transition it is. Everything else
-// reads it: the beam yields camera control, the stops pin themselves open, the
-// starfield streaks, the DOM locks scrolling.
+// inspection, and how far through the transition it is. Everything else reads
+// it: the studio yields the subject's transform, the inspect controller takes
+// the camera, the DOM dims the page and locks scrolling.
 //
-// The portal is a single 0..1 `progress` ramp, not a sequence of separate
+// The transition is a single 0..1 `progress` ramp, not a sequence of separate
 // animations. Enter runs it 0 -> 1, exit runs it 1 -> 0, and every visual that
 // participates is a pure function of that one number. That is what makes the
 // exit "the exact reverse" rather than a second animation that has to be kept
@@ -46,9 +46,9 @@ const state: DetailState =
 
 export const detail = state;
 
-/** Duration of one leg of the portal, seconds. */
-const ENTER_S = 1.15;
-const EXIT_S = 0.9;
+/** Duration of one leg of the transition, seconds. */
+const ENTER_S = 0.85;
+const EXIT_S = 0.7;
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
@@ -130,14 +130,4 @@ export function stepDetail(nowMs: number): void {
     }
     document.documentElement.classList.remove('is-detail');
   }
-}
-
-/**
- * Tunnel-vision curve: 0 at both ends, 1 in the middle of the transition.
- * The FOV widens into the portal and settles back for inspection, so the warp
- * belongs to the travel and never to the resting state.
- */
-export function portalPeak(progress: number): number {
-  const p = Math.max(0, Math.min(1, progress));
-  return Math.sin(p * Math.PI);
 }

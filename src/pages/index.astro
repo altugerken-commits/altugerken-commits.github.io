@@ -1,645 +1,671 @@
 ---
 import Base from '../layouts/Base.astro';
-import { TRACK_VH } from '../lib/stops';
+
+// Copy lives here rather than in a content collection: two projects is not a
+// collection, it is a page. The moment there is a third with its own route,
+// this moves to src/content and the loop below stays identical.
+const projects = [
+  {
+    id: 'nomad',
+    index: '01',
+    kind: 'Product',
+    title: 'Nomad Brewer',
+    lead:
+      'A modular outdoor coffee and tea brewer. The body separates into stacked components that travel nested and assemble by feel, without a manual.',
+    body: [
+      'Each joint is a twist-lock: a quarter turn seats and seals it, so the whole stack can be built and struck with cold hands and one hand free.',
+      'Dark matte ceramic for the structure, frosted glass for the vessels — the brew level has to be readable without opening anything.',
+    ],
+    spec: [
+      ['Type', 'Modular outdoor brewing device'],
+      ['System', 'Stacked components, twist-lock'],
+      ['Materials', 'Matte ceramic, frosted glass'],
+      ['Status', 'Concept, 2025'],
+    ],
+    side: 'left' as const,
+  },
+  {
+    id: 'shifu',
+    index: '02',
+    kind: 'Composites',
+    title: 'Shifu 26',
+    lead:
+      'Formula Student bodywork for Ozu Racing, developed inside the composites and aerodynamics sub-team.',
+    body: [
+      'Carbon fibre skins over a steel spaceframe, with enamel detailing held to the minimum the regulations allow.',
+      'The model here is the full assembly: 1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without altering a single material definition.',
+    ],
+    spec: [
+      ['Team', 'Ozu Racing'],
+      ['Sub-team', 'Composites & aerodynamics'],
+      ['Scope', 'Carbon bodywork, steel chassis'],
+      ['Assembly', '1,498 bodies, 3 materials'],
+    ],
+    side: 'right' as const,
+  },
+];
+
+const toolkit = [
+  ['Fusion 360', 'Parametric CAD'],
+  ['Rhino 3D', 'Surface modelling'],
+  ['SolidWorks', 'Assemblies, drawings'],
+  ['Blender', 'Mesh, look development'],
+  ['D5 Render', 'Real-time visualisation'],
+  ['Creative Cloud', 'Layout, retouch'],
+];
 ---
 
 <Base>
-  {/* Greeting first, then About/Contact, then the empty track that gives the
-      camera something to travel across.
+  {/* ---- floating nav ----------------------------------------------------
+      A detached pill, not an edge-to-edge bar glued to the top. Three links
+      fit on a phone at this size, so there is no hamburger and no full-screen
+      modal — a morphing menu for three words would be ceremony, not craft. */}
+  <nav class="nav" aria-label="Primary">
+    <ul class="nav__list">
+      <li><a href="#work" data-navlink="work">Work</a></li>
+      <li><a href="#about" data-navlink="about">About</a></li>
+      <li><a href="#contact" data-navlink="contact">Contact</a></li>
+    </ul>
+  </nav>
 
-      The track USED to come first. That was invisible while the hero was
-      position:fixed, but the moment the hero moved into normal flow the track's
-      1000vh of empty div sat in front of it and pushed the greeting and the
-      About copy to the very bottom of the document. Content leads; the spacer
-      follows and is sized to whatever is left. */}
-  <section class="hero">
-    <h1 class="hero__title display" data-greeting>Good Evening.</h1>
+  {/* ---- hero ------------------------------------------------------------
+      Editorial Split: the type owns the left, and the right stays open paper.
+      The first product arrives one scroll down — a portfolio that opens on a
+      confident typographic statement and reveals the object as you move is
+      stronger than one that shows everything at once. */}
+  <header class="hero">
+    <div class="shell hero__grid">
+      <div class="hero__type">
+        <p class="eyebrow" data-reveal>Industrial design &amp; engineering</p>
+
+        <h1 class="t-display hero__name" data-reveal data-reveal-delay="1">
+          Altuğ<br />Erken
+        </h1>
+
+        <p class="t-lead hero__lead" data-reveal data-reveal-delay="2">
+          I work where form meets mechanism — modular outdoor equipment,
+          composite bodywork, and objects built to be understood without
+          instructions.
+        </p>
+
+        <a class="cta" href="#work" data-reveal data-reveal-delay="3">
+          <span>See the work</span>
+          <span class="cta__pip" aria-hidden="true">
+            <svg viewBox="0 0 16 16" focusable="false">
+              <path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+            </svg>
+          </span>
+        </a>
+      </div>
+
+      {/* Sits in the grid so the split is real at every width, and carries the
+          scroll cue rather than pinning it to the viewport floor. */}
+      <div class="hero__aside">
+        <p class="t-label hero__clock" data-clock>Istanbul</p>
+        <p class="t-label hero__cue" aria-hidden="true">
+          <span class="hero__cue-rule"></span>Scroll
+        </p>
+      </div>
+    </div>
+  </header>
+
+  {/* ---- work ------------------------------------------------------------ */}
+  <section id="work" class="work" aria-labelledby="work-heading">
+    <h2 id="work-heading" class="sr-only">Selected work</h2>
+
+    {
+      projects.map((p) => (
+        <article class:list={['project', `project--${p.side}`]} aria-labelledby={`${p.id}-title`}>
+          <div class="shell project__grid">
+            {/* The box the 3D product fills. It is empty on purpose: the
+                studio scene reads its bounding rect every frame and places
+                the model to match, so the layout is the single authority on
+                where the object sits. Given real dimensions here because a
+                zero-height anchor parks its product at scale 0. */}
+            <div class="product" data-product={p.id} aria-hidden="true"></div>
+
+            <div class="project__body">
+              <p class="eyebrow" data-reveal>
+                {p.index} — {p.kind}
+              </p>
+
+              <h3 id={`${p.id}-title`} class="t-h1 project__title" data-reveal data-reveal-delay="1">
+                {p.title}
+              </h3>
+
+              <p class="t-lead" data-reveal data-reveal-delay="2">{p.lead}</p>
+
+              <div class="project__copy" data-reveal data-reveal-delay="3">
+                {p.body.map((t) => <p class="t-body">{t}</p>)}
+              </div>
+
+              <dl class="spec" data-reveal data-reveal-delay="4">
+                {p.spec.map(([k, v]) => (
+                  <div class="spec__row">
+                    <dt class="t-label">{k}</dt>
+                    <dd class="t-spec">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <button class="cta cta--quiet" type="button" data-inspect={p.id} data-reveal data-reveal-delay="5">
+                <span>Inspect in 3D</span>
+                <span class="cta__pip" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" focusable="false">
+                    <path d="M8 1.8 14 5.2v5.6L8 14.2 2 10.8V5.2z" />
+                    <path d="M8 8.1 14 5.2M8 8.1v6.1M8 8.1 2 5.2" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        </article>
+      ))
+    }
   </section>
 
-  {/* About and Toolkit are columns of ONE section, with a gutter down the
-      middle for the beam. Sharing a section is what guarantees they align
-      horizontally and share a scroll lifecycle exactly — two independently
-      positioned blocks would have to be kept in agreement by hand. */}
-  <section class="about">
-    <div class="about__col">
-    <p class="hud about__label">About</p>
-    <div class="about__body display">
-      <p>
-        I am Altuğ Erken, an industrial design and engineering student at
-        Özyeğin University. I operate at the intersection of aesthetic form and
-        mechanical function, crafting products that are both visually striking
-        and meticulously engineered.
-      </p>
-      <p>
-        As a member of the composites and aerodynamics sub-team at Ozu Racing, I
-        specialize in the structural design and advanced manufacturing of
-        vehicle outer shells.
-      </p>
-      <p>
-        Whether I am designing modular outdoor equipment or smart living
-        concepts, my philosophy is rooted in stripping away the unnecessary. I
-        gravitate towards clean geometries, monochrome palettes, and
-        &lsquo;dead-front&rsquo; interfaces, focusing on revealing the pure
-        essence and raw materiality of a product.
-      </p>
-    </div>
+  {/* ---- about -----------------------------------------------------------
+      Asymmetrical Bento. The bio spans two rows against a stack of narrower
+      cards, so the grid never resolves into three equal columns — which the
+      audit names as the most generic layout there is. */}
+  <section id="about" class="band" aria-labelledby="about-heading">
+    <div class="shell">
+      <p class="eyebrow" data-reveal>About</p>
+      <h2 id="about-heading" class="t-h1 about__heading" data-reveal data-reveal-delay="1">
+        Stripping away<br />the unnecessary.
+      </h2>
 
-    <div class="about__contact">
-      <p class="hud about__label">Contact</p>
-      <ul class="about__links hud">
+      <div class="bento">
+        <div class="bezel bento__bio" data-reveal>
+          <div class="bezel__core bento__pad">
+            <p class="t-body">
+              I am Altuğ Erken, an industrial design and engineering student at
+              Özyeğin University. I operate at the intersection of aesthetic
+              form and mechanical function, crafting products that are both
+              visually striking and meticulously engineered.
+            </p>
+            <p class="t-body">
+              As a member of the composites and aerodynamics sub-team at Ozu
+              Racing, I specialize in the structural design and advanced
+              manufacturing of vehicle outer shells.
+            </p>
+            <p class="t-body">
+              Whether I am designing modular outdoor equipment or smart living
+              concepts, my philosophy is rooted in stripping away the
+              unnecessary. I gravitate towards clean geometries, monochrome
+              palettes, and &lsquo;dead-front&rsquo; interfaces, focusing on
+              revealing the pure essence and raw materiality of a product.
+            </p>
+          </div>
+        </div>
+
+        <div class="bezel bento__facts" data-reveal data-reveal-delay="1">
+          <div class="bezel__core bento__pad">
+            <p class="t-label bento__label">Currently</p>
+            <dl class="spec spec--tight">
+              <div class="spec__row">
+                <dt class="t-label">Study</dt>
+                <dd class="t-spec">Industrial Design &amp; Engineering, Özyeğin University</dd>
+              </div>
+              <div class="spec__row">
+                <dt class="t-label">Team</dt>
+                <dd class="t-spec">Ozu Racing — composites &amp; aerodynamics</dd>
+              </div>
+              <div class="spec__row">
+                <dt class="t-label">Based</dt>
+                <dd class="t-spec">İstanbul, Türkiye</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="bezel bento__kit" data-reveal data-reveal-delay="2">
+          <div class="bezel__core bento__pad">
+            <p class="t-label bento__label">Digital toolkit</p>
+            <ul class="kit">
+              {
+                toolkit.map(([name, role]) => (
+                  <li class="kit__row">
+                    <span class="t-h3 kit__name">{name}</span>
+                    <span class="t-spec kit__role">{role}</span>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* ---- contact ---------------------------------------------------------- */}
+  <section id="contact" class="band contact" aria-labelledby="contact-heading">
+    <div class="shell">
+      <p class="eyebrow" data-reveal>Contact</p>
+      <h2 id="contact-heading" class="t-display contact__heading" data-reveal data-reveal-delay="1">
+        Let&rsquo;s build<br />something solid.
+      </h2>
+
+      <ul class="links" data-reveal data-reveal-delay="2">
+        <li>
+          <a href="mailto:altug.erken@ozu.edu.tr">
+            <span class="t-label links__kind">Email</span>
+            <span class="t-h3 links__value">altug.erken@ozu.edu.tr</span>
+            <span class="links__pip" aria-hidden="true">
+              <svg viewBox="0 0 16 16" focusable="false">
+                <path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+              </svg>
+            </span>
+          </a>
+        </li>
         <li>
           <a
             href="https://www.linkedin.com/in/altuğ-erken-7b4277305/"
             rel="me noopener"
             target="_blank"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <rect x="3" y="3" width="18" height="18" rx="2.5" />
-              <path d="M7.2 10.4v6.2M7.2 7.4v.02" />
-              <path d="M11.4 16.6v-6.2M11.4 13.1c0-1.5 1-2.7 2.6-2.7s2.6 1.1 2.6 2.7v3.5" />
-            </svg>
-            <span>LinkedIn</span>
+            <span class="t-label links__kind">LinkedIn</span>
+            <span class="t-h3 links__value">altuğ-erken</span>
+            <span class="links__pip" aria-hidden="true">
+              <svg viewBox="0 0 16 16" focusable="false">
+                <path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+              </svg>
+            </span>
           </a>
         </li>
         <li>
-          <a
-            href="https://www.instagram.com/_altugerken_/?hl=tr"
-            rel="me noopener"
-            target="_blank"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <rect x="3" y="3" width="18" height="18" rx="5" />
-              <circle cx="12" cy="12" r="4" />
-              <path d="M17.2 6.8v.02" />
-            </svg>
-            <span>Instagram</span>
+          <a href="https://www.instagram.com/_altugerken_/?hl=tr" rel="me noopener" target="_blank">
+            <span class="t-label links__kind">Instagram</span>
+            <span class="t-h3 links__value">_altugerken_</span>
+            <span class="links__pip" aria-hidden="true">
+              <svg viewBox="0 0 16 16" focusable="false">
+                <path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+              </svg>
+            </span>
           </a>
         </li>
-        <li>
-          <a href="mailto:altug.erken@ozu.edu.tr">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <rect x="2.8" y="5" width="18.4" height="14" rx="2.5" />
-              <path d="m3.4 7.2 8.6 6 8.6-6" />
-            </svg>
-            <span>altug.erken@ozu.edu.tr</span>
-          </a>
-        </li>
-      </ul>
-      <p class="about__cue display">Keep scrolling.</p>
-    </div>
-    </div>
-
-    <div class="toolkit">
-      <p class="hud about__label">Digital Toolkit</p>
-      <ul class="toolkit__list display">
-        <li>Fusion 360</li>
-        <li>Rhino 3D</li>
-        <li>Adobe Creative Cloud</li>
-        <li>D5 Render</li>
-        <li>Blender</li>
-        <li>SolidWorks</li>
       </ul>
     </div>
   </section>
 
-  {/* Empty travel for the camera. Sized to the remainder of the track so the
-      total document height still equals TRACK_VH regardless of how tall the
-      content above grows. */}
-  <div
-    class="scroll-track"
-    style={`height:calc(${TRACK_VH * 100}vh - 200vh)`}
-    aria-hidden="true"
-  ></div>
+  <footer class="footer">
+    <div class="shell footer__grid">
+      <p class="t-label">© 2026 Altuğ Erken</p>
+      <p class="t-label footer__colophon">
+        Geist &amp; Geist Mono · Astro, Three.js · Models shown as authored, no
+        retouching
+      </p>
+    </div>
+  </footer>
 
-  {/* FIXED NAV. Top-right, above everything including the white-out card. */}
-  <nav class="nav" aria-label="Primary">
-    <button class="nav__btn" type="button" data-warp-home aria-label="Home">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M3.6 10.6 12 3.8l8.4 6.8" />
-        <path d="M5.8 9.4V20h12.4V9.4" />
-      </svg>
-      <span class="nav__label">Home</span>
-    </button>
-    <button
-      class="nav__btn"
-      type="button"
-      data-warp-search
-      aria-label="Search stops"
-      aria-expanded="false"
-      aria-controls="warp-menu"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <circle cx="10.8" cy="10.8" r="6.4" />
-        <path d="m15.6 15.6 4.2 4.2" />
-      </svg>
-      <span class="nav__label">Search</span>
-    </button>
-
-    <ul class="nav__menu" id="warp-menu" data-warp-menu hidden>
-      <li><button type="button" data-warp-to="0">Top</button></li>
-      <li><button type="button" data-warp-to="1">About &amp; Contact</button></li>
-      <li><button type="button" data-warp-to="5">01 — Nomad Brewer</button></li>
-      <li><button type="button" data-warp-to="7.4">02 — Shifu 26</button></li>
-    </ul>
-  </nav>
-
-  {/* DETAIL MODE OVERLAY. Present only at the far end of the portal. */}
+  {/* ---- detail overlay ---------------------------------------------------
+      Present only once the dolly has landed. pointer-events are re-enabled on
+      the panel itself: the whole DOM layer is switched off during inspection
+      so OrbitControls can see the canvas, and a child may opt back in when an
+      ancestor has opted out. */}
   <div class="detail" data-detail hidden>
     <div class="detail__panel">
-      <p class="hud detail__index" data-detail-index></p>
-      <h2 class="detail__title display" data-detail-title></h2>
+      <p class="eyebrow" data-detail-index></p>
+      <h2 class="t-h2 detail__title" data-detail-title></h2>
       <div class="detail__body" data-detail-body></div>
-      <button class="detail__back hud" type="button" data-detail-back>
-        <span aria-hidden="true">←</span>
-        <span>Back</span>
+      <button class="cta cta--quiet detail__back" type="button" data-detail-back>
+        <span class="cta__pip cta__pip--lead" aria-hidden="true">
+          <svg viewBox="0 0 16 16" focusable="false">
+            <path d="M10 3.5 5.5 8l4.5 4.5" />
+          </svg>
+        </span>
+        <span>Back to the page</span>
       </button>
     </div>
-    <p class="hud detail__hint">Drag to rotate · scroll to zoom</p>
+    <p class="t-label detail__hint">Drag to rotate · scroll to zoom · Esc to exit</p>
   </div>
 
-  {/* Pinned to the bottom of the viewport, cleared the moment scrolling starts. */}
-  <p class="hero__sub" data-hero-sub>Scroll down to navigate in my design galaxy.</p>
-
-  {/* THE THRESHOLD CARD. Lives only inside the pure-white plateau. Pure black
-      on #FFFFFF, which is the one moment on this site that inverts. */}
-  <div class="threshold" data-threshold aria-hidden="true">
-    <p class="threshold__word display">Welcome.</p>
-  </div>
-
-  {/* Inline and un-bundled on purpose. The greeting depends on the visitor's
-      local clock, which the server cannot know — rendering a guess and
-      correcting it later would flash the wrong time of day. This runs during
-      parse, immediately after the element exists and before first paint, so
-      the only text ever painted is the correct one. The markup ships a bare
-      "Welcome" as the no-JS fallback. */}
-  <script is:inline>
-    window.__setGreeting = function () {
-      var el = document.querySelector('[data-greeting]');
-      if (!el) return;
-      var h = new Date().getHours();
-      var part =
-        h < 5 ? 'Night' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
-      el.textContent = 'Good ' + part + '.';
-    };
-    window.__setGreeting();
-  </script>
-
-  {/* FIRST STOP — NOMAD BREWER. Sits opposite the object, which holds frame
-      centre. Hidden from AT and from tab order until it is present. */}
-  <aside class="stop stop--right" data-stop="nomad" aria-hidden="true">
-    <p class="hud stop__index">01 — Stop</p>
-    <h2 class="stop__title display">Nomad Brewer</h2>
-    <dl class="stop__meta hud">
-      <div><dt>Type</dt><dd>Modular outdoor coffee &amp; tea brewing device</dd></div>
-      <div><dt>System</dt><dd>Stacked components · twist-lock mechanism</dd></div>
-      <div><dt>Materials</dt><dd>Dark matte ceramic · frosted glass</dd></div>
-    </dl>
-    <button class="stop__cta hud" type="button" data-stop-cta="nomad">
-      <span>View details</span>
-      <span class="stop__rule" aria-hidden="true"></span>
-    </button>
-  </aside>
-
-  {/* SECOND STOP — SHIFU. Mirrored to the opposite side so the two showcases
-      do not read as the same slide twice. */}
-  <aside class="stop stop--left" data-stop="shifu" aria-hidden="true">
-    <p class="hud stop__index">02 — Stop</p>
-    <h2 class="stop__title display">Shifu 26</h2>
-    <dl class="stop__meta hud">
-      <div><dt>Team</dt><dd>Ozu Racing</dd></div>
-      <div><dt>Sub-team</dt><dd>Composites &amp; Aerodynamics</dd></div>
-      <div><dt>Scope</dt><dd>Carbon bodywork · steel chassis</dd></div>
-    </dl>
-    <button class="stop__cta hud" type="button" data-stop-cta="shifu">
-      <span>View details</span>
-      <span class="stop__rule" aria-hidden="true"></span>
-    </button>
-  </aside>
-
-  {/* SCAFFOLDING — status probe. */}
-  <p class="hud probe" data-probe>stage · initialising</p>
+  <p class="t-label probe" data-probe hidden></p>
 </Base>
 
 <style>
-  /* In flow, not fixed: the greeting scrolls up and away with the document. */
-  .hero {
-    min-height: 100vh;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    padding: 0 clamp(1.25rem, 5vw, 4rem);
+  /* ---- nav --------------------------------------------------------------
+     Floating, detached, translucent. Content scrolls underneath it rather
+     than being pushed down by a fixed strip. */
+  .nav {
+    position: fixed;
+    top: clamp(1rem, 2.5vw, 1.75rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-chrome);
   }
-
-  /* The beam is blown out at frame centre, so white type laid straight over it
-     loses its counters. A narrow scrim — only as tall as the line itself —
-     buys back the contrast without putting a visible plate in the void. */
-  .hero__title {
-    position: relative;
-    margin: 0;
-    font-size: clamp(2.25rem, 7vw, 6rem);
-    font-weight: 300;
-    font-style: italic;
-    letter-spacing: 0.01em;
-    text-align: center;
-    padding: 0.4em clamp(1rem, 6vw, 5rem);
-    color: #fff;
-    text-shadow:
-      0 0 26px rgba(0, 0, 0, 0.85),
-      0 0 70px rgba(0, 0, 0, 0.6);
-  }
-  .hero__title::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(0, 0, 0, 0.6) 22%,
-      rgba(0, 0, 0, 0.72) 50%,
-      rgba(0, 0, 0, 0.6) 78%,
-      transparent 100%
-    );
-    filter: blur(10px);
-  }
-
-  /* ---- about ------------------------------------------------------------- */
-
-  /* Two columns with a gutter down the middle for the beam. */
-  .about {
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns:
-      minmax(0, 1fr)
-      clamp(6rem, 16vw, 13rem)
-      minmax(0, 0.62fr);
+  .nav__list {
+    display: flex;
     align-items: center;
-    padding: 12vh clamp(1.5rem, 6vw, 6rem);
-    gap: 0;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0.3rem;
+    list-style: none;
+    background: color-mix(in oklab, var(--color-surface) 72%, transparent);
+    backdrop-filter: blur(16px) saturate(150%);
+    border-radius: 999px;
+    /* A bright top edge is light catching the material — it does more for the
+       sense of a physical surface than a full border would, and it avoids the
+       generic 1px grey outline. */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      var(--shadow-2);
   }
-  .about__col {
-    grid-column: 1;
-    display: grid;
-    gap: clamp(1.5rem, 4vh, 2.5rem);
-    max-width: 52ch;
+  .nav__list a {
+    display: block;
+    padding: 0.5rem 1.05rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    text-decoration: none;
+    transition:
+      color var(--dur-menu) var(--ease-out),
+      background-color var(--dur-menu) var(--ease-out);
   }
-  .toolkit {
-    grid-column: 3;
+  .nav__list a:hover {
+    color: var(--color-ink);
+    background: color-mix(in oklab, var(--color-sunken) 80%, transparent);
+  }
+  /* Which section you are in. Without this the nav answers "where can I go"
+     but never "where am I". */
+  .nav__list a[data-active] {
+    color: var(--color-surface);
+    background: var(--color-ink);
+  }
+
+  @media (max-width: 480px) {
+    .nav__list a { padding: 0.5rem 0.75rem; font-size: 0.62rem; }
+  }
+
+  /* ---- hero -------------------------------------------------------------- */
+  .hero {
+    min-height: 100dvh;
     display: grid;
-    gap: clamp(0.9rem, 2.4vh, 1.4rem);
+    align-items: center;
+    padding-block: clamp(7rem, 18vh, 12rem) clamp(4rem, 10vh, 7rem);
+  }
+  .hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.34fr);
+    align-items: end;
+    gap: clamp(2rem, 6vw, 5rem);
+  }
+  .hero__type { display: grid; justify-items: start; gap: clamp(1.25rem, 3vh, 2rem); }
+  .hero__name { margin: 0; }
+  .hero__lead { margin: 0; max-width: 34ch; }
+
+  .hero__aside {
+    display: grid;
+    gap: 1.25rem;
     justify-items: end;
     text-align: right;
   }
-  .toolkit__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: clamp(0.45rem, 1.4vh, 0.85rem);
-    font-size: clamp(1rem, 1.55vw, 1.5rem);
-    font-weight: 300;
-    line-height: 1.25;
-    color: color-mix(in oklab, var(--fg) 88%, transparent);
-    text-shadow: 0 0 24px rgba(0, 0, 0, 0.85);
-  }
-  .toolkit__list li {
-    position: relative;
-    padding-right: 1.1em;
-  }
-  /* A hairline tick rather than a bullet: the list should read as a spec
-     column, not as body copy with markers. */
-  .toolkit__list li::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    top: 0.62em;
-    width: 0.55em;
-    height: 1px;
-    background: color-mix(in oklab, var(--fg) 32%, transparent);
-  }
-
-  @media (max-width: 900px) {
-    .about {
-      grid-template-columns: minmax(0, 1fr);
-      gap: clamp(2.5rem, 8vh, 5rem);
-    }
-    .about__col { grid-column: 1; }
-    .toolkit {
-      grid-column: 1;
-      justify-items: start;
-      text-align: left;
-    }
-    .toolkit__list li { padding-right: 0; padding-left: 1.1em; }
-    .toolkit__list li::after { right: auto; left: 0; }
-  }
-  .about__label { color: color-mix(in oklab, var(--fg) 42%, transparent); }
-  .about__body {
-    display: grid;
-    gap: 1.1em;
-    font-size: clamp(1.05rem, 1.7vw, 1.6rem);
-    font-weight: 300;
-    line-height: 1.5;
-    color: color-mix(in oklab, var(--fg) 92%, transparent);
-    text-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
-  }
-  .about__body p { margin: 0; }
-
-  .about__contact {
-    display: grid;
-    gap: clamp(0.75rem, 2vh, 1.25rem);
-    margin-top: clamp(1.5rem, 4vh, 2.5rem);
-  }
-  .about__links {
-    list-style: none;
-    display: grid;
-    gap: 0.55rem;
-    margin: 0;
-    padding: 0;
-  }
-  .about__links a {
+  .hero__clock { font-variant-numeric: tabular-nums; }
+  .hero__cue {
     display: inline-flex;
     align-items: center;
     gap: 0.7em;
-    color: color-mix(in oklab, var(--fg) 78%, transparent);
-    text-decoration: none;
-    transition: color 0.4s var(--ease);
+    color: var(--color-ink-4);
   }
-  /* The rule sits under the label only, not under the icon — an underline that
-     ran beneath the glyph would read as a boxed button. */
-  .about__links a span {
-    border-bottom: 1px solid color-mix(in oklab, var(--fg) 22%, transparent);
-    padding-bottom: 0.15em;
-    transition: border-color 0.4s var(--ease);
-  }
-  .about__links a svg {
-    width: 1.15em;
-    height: 1.15em;
-    flex: none;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    opacity: 0.75;
-    transition: opacity 0.4s var(--ease);
-  }
-  .about__links a:hover,
-  .about__links a:focus-visible { color: var(--fg); }
-  .about__links a:hover span,
-  .about__links a:focus-visible span { border-color: var(--fg); }
-  .about__links a:hover svg,
-  .about__links a:focus-visible svg { opacity: 1; }
-  .about__cue {
-    margin: clamp(0.5rem, 2vh, 1.5rem) 0 0;
-    font-size: clamp(1rem, 1.5vw, 1.35rem);
-    font-style: italic;
-    color: color-mix(in oklab, var(--fg) 55%, transparent);
-  }
-
-  @media (max-width: 860px) {
-    .about {
-      max-width: none;
-      margin-inline: clamp(1.25rem, 6vw, 3rem);
-    }
-  }
-
-  /* ---- threshold card ---------------------------------------------------- */
-
-  .threshold {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    pointer-events: none;
-    opacity: 0;
-    z-index: 2;
-  }
-  .threshold__word {
-    margin: 0;
-    font-size: clamp(2.5rem, 9vw, 8rem);
-    font-weight: 300;
-    font-style: italic;
-    letter-spacing: 0.01em;
-    /* Near-black rather than pure #000: on a 255 field a hair of lift keeps
-       the serif's thin strokes from aliasing into hard stair-steps. */
-    color: #0a0a0c;
-  }
-
-  /* Pinned near the floor of the viewport, one line, never wrapping. Its
-     opacity is driven from the scroll position in JS, not by a transition —
-     it must track the scroll rather than lag behind it. */
-  .hero__sub {
-    position: fixed;
-    left: 50%;
-    bottom: clamp(1.75rem, 5vh, 3.25rem);
-    transform: translateX(-50%);
-    margin: 0;
-    white-space: nowrap;
-    font-family: var(--font-mono);
-    font-size: clamp(0.68rem, 1vw, 0.82rem);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 0.7em 1.4em;
-    color: color-mix(in oklab, var(--fg) 78%, transparent);
-    text-shadow: 0 0 16px rgba(0, 0, 0, 0.9), 0 0 34px rgba(0, 0, 0, 0.7);
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  /* On a narrow viewport the single line would overflow, and the brief is
-     explicit that it stays one line — so it shrinks rather than wraps. */
-  @media (max-width: 560px) {
-    .hero__sub {
-      font-size: 0.58rem;
-      letter-spacing: 0.08em;
-    }
-  }
-
-  /* ---- project stop overlay ---------------------------------------------- */
-
-  .stop {
-    /* Base Y offset, so the reveal transform is written once and stays correct
-       when the panel moves from vertically-centred to bottom-anchored. */
-    --stop-y: -50%;
-    position: fixed;
-    top: 50%;
-    width: min(30ch, 34vw);
-    display: grid;
-    gap: clamp(0.9rem, 2.2vh, 1.6rem);
-    opacity: 0;
-    will-change: opacity, transform;
-  }
-  .stop--right {
-    right: clamp(1.5rem, 6vw, 6rem);
-    text-align: right;
-    justify-items: end;
-  }
-  .stop--left {
-    left: clamp(1.5rem, 6vw, 6rem);
-    text-align: left;
-    justify-items: start;
-  }
-  .stop--left .stop__cta { justify-items: start; }
-  .stop--left .stop__rule { transform-origin: left; }
-
-  .stop__index { color: color-mix(in oklab, var(--fg) 45%, transparent); }
-
-  .stop__title {
-    margin: 0;
-    font-size: clamp(2rem, 4.6vw, 3.75rem);
-    color: #fff;
-  }
-
-  .stop__meta {
-    display: grid;
-    gap: 0.55rem;
-    margin: 0;
-    color: color-mix(in oklab, var(--fg) 62%, transparent);
-  }
-  .stop__meta > div {
-    display: grid;
-    gap: 0.15rem;
-  }
-  .stop__meta dt {
-    color: color-mix(in oklab, var(--fg) 34%, transparent);
-  }
-  .stop__meta dd { margin: 0; }
-
-  .stop__cta {
-    display: grid;
-    gap: 0.5rem;
-    justify-items: end;
-    padding: 0;
-    background: none;
-    border: 0;
-    color: var(--fg);
-    cursor: pointer;
-    text-transform: uppercase;
-  }
-  /* The rule is the whole interaction: it draws itself under the label rather
-     than the label changing colour. Quiet, and it survives on a bright field. */
-  .stop__rule {
+  .hero__cue-rule {
     display: block;
-    width: 100%;
+    width: clamp(2rem, 5vw, 3.5rem);
     height: 1px;
-    background: color-mix(in oklab, var(--fg) 30%, transparent);
-    transform: scaleX(0.28);
-    transform-origin: right;
-    transition: transform 0.5s var(--ease), background-color 0.5s var(--ease);
-  }
-  .stop__cta:hover .stop__rule,
-  .stop__cta:focus-visible .stop__rule {
-    transform: scaleX(1);
-    background: var(--fg);
+    background: currentColor;
+    opacity: 0.5;
   }
 
-  .probe {
-    position: fixed;
-    left: clamp(1rem, 3vw, 2.5rem);
-    bottom: clamp(1rem, 3vw, 2.5rem);
-    pointer-events: none;
-    color: color-mix(in oklab, var(--fg) 45%, transparent);
+  @media (max-width: 900px) {
+    .hero__grid { grid-template-columns: minmax(0, 1fr); }
+    .hero__aside { justify-items: start; text-align: left; }
   }
 
-  /* ---- fixed nav --------------------------------------------------------- */
+  /* ---- project ----------------------------------------------------------- */
+  .project {
+    min-height: 100dvh;
+    display: grid;
+    align-items: center;
+    padding-block: clamp(5rem, 12vh, 9rem) clamp(6rem, 14vh, 11rem);
+  }
+  .project__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: center;
+    gap: clamp(2rem, 6vw, 6rem);
+  }
+  /* Mirrored, so the two case studies do not read as the same page twice.
+     Ordering by grid-column rather than by DOM order keeps the heading before
+     the decorative box for a screen reader in both directions. */
+  .project--right .product { grid-column: 2; grid-row: 1; }
+  .project--right .project__body { grid-column: 1; grid-row: 1; }
 
-  .nav {
-    position: fixed;
-    top: clamp(1rem, 2.5vw, 2rem);
-    right: clamp(1rem, 3vw, 2.5rem);
-    display: flex;
-    align-items: flex-start;
-    gap: clamp(0.5rem, 1.2vw, 1rem);
-    /* Above the white-out card, which is z-index 2 — the nav is the one thing
-       that must never be swallowed by the threshold. */
-    z-index: 10;
+  .project__body { display: grid; justify-items: start; gap: clamp(1rem, 2.4vh, 1.5rem); }
+  .project__title { margin: 0; }
+  .project__copy { display: grid; gap: 0.9em; }
+  .project__copy p { margin: 0; }
+
+  /* The empty box the 3D model fills. Its shadow is CSS rather than geometry:
+     a real cast shadow needs a floor, and this direction has no floor — the
+     product floats on paper. A blurred radial under the object reads as
+     ambient occlusion without implying a surface it is standing on. */
+  .product {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    min-height: 22rem;
+  }
+  .product::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 6%;
+    width: 58%;
+    height: 12%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(38, 34, 28, 0.17),
+      rgba(38, 34, 28, 0) 72%
+    );
+    filter: blur(16px);
   }
 
-  .nav__btn {
+  @media (max-width: 900px) {
+    .project__grid { grid-template-columns: minmax(0, 1fr); }
+    .project--right .product,
+    .project--right .project__body { grid-column: 1; grid-row: auto; }
+    .product { aspect-ratio: 1 / 1; min-height: 17rem; }
+  }
+
+  /* ---- spec -------------------------------------------------------------- */
+  .spec { display: grid; gap: 0; margin: 0.5rem 0 0; width: 100%; max-width: 34rem; }
+  .spec__row {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-top: 1px solid var(--color-hairline);
+    align-items: baseline;
+  }
+  .spec__row:last-child { border-bottom: 1px solid var(--color-hairline); }
+  .spec--tight .spec__row { grid-template-columns: 5rem minmax(0, 1fr); }
+  .spec dt { margin: 0; }
+  .spec dd { margin: 0; }
+
+  @media (max-width: 560px) {
+    .spec__row,
+    .spec--tight .spec__row { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  }
+
+  /* ---- cta --------------------------------------------------------------
+     Nested island button: a pill, with the arrow inside its own circular well
+     flush to the inner padding. The pip translates diagonally on hover while
+     the button itself presses down, which is what gives it internal tension
+     instead of a flat colour swap. */
+  .cta {
     display: inline-flex;
     align-items: center;
-    gap: 0.5em;
-    padding: 0.5em 0.85em;
-    background: color-mix(in oklab, #000 55%, transparent);
-    border: 1px solid color-mix(in oklab, var(--fg) 16%, transparent);
+    gap: 0.85rem;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.55rem 0.55rem 1.35rem;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    border: 0;
     border-radius: 999px;
-    color: color-mix(in oklab, var(--fg) 82%, transparent);
-    font-family: var(--font-display);
-    font-size: clamp(0.85rem, 1.1vw, 1.02rem);
-    font-weight: 400;
-    letter-spacing: 0.02em;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    text-decoration: none;
     cursor: pointer;
-    backdrop-filter: blur(10px);
-    transition: color 0.35s var(--ease), border-color 0.35s var(--ease),
-      background-color 0.35s var(--ease);
+    box-shadow: var(--shadow-2);
+    transition:
+      transform var(--dur-press) var(--ease-out),
+      box-shadow var(--dur-panel) var(--ease-out),
+      background-color var(--dur-panel) var(--ease-out);
   }
-  .nav__btn:hover,
-  .nav__btn:focus-visible {
-    color: var(--fg);
-    border-color: color-mix(in oklab, var(--fg) 45%, transparent);
-    background: color-mix(in oklab, #000 72%, transparent);
+  .cta:hover { box-shadow: var(--shadow-3); }
+  /* Feedback on the press itself, not on release. */
+  .cta:active { transform: scale(0.975); }
+
+  .cta--quiet {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-hairline), var(--shadow-1);
   }
-  .nav__btn svg {
-    width: 1.05em;
-    height: 1.05em;
+  .cta--quiet:hover { box-shadow: inset 0 0 0 1px var(--color-ink-4), var(--shadow-2); }
+
+  .cta__pip {
+    display: grid;
+    place-items: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-paper) 18%, transparent);
+    transition: transform var(--dur-panel) var(--ease-out);
+  }
+  .cta--quiet .cta__pip { background: var(--color-sunken); }
+  .cta__pip--lead { order: -1; }
+  .cta__pip svg {
+    width: 0.85rem;
+    height: 0.85rem;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.5;
+    stroke-width: 1.4;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+  .cta:hover .cta__pip { transform: translate(2px, -2px); }
+  .cta:hover .cta__pip--lead { transform: translate(-2px, 0); }
 
-  .nav__menu {
-    position: absolute;
-    top: calc(100% + 0.6rem);
-    right: 0;
-    min-width: 15rem;
-    list-style: none;
-    margin: 0;
-    padding: 0.5rem;
+  /* ---- bento ------------------------------------------------------------- */
+  .about__heading { margin: 0.75rem 0 clamp(2.5rem, 6vh, 4rem); }
+
+  .bento {
     display: grid;
-    gap: 0.15rem;
-    background: color-mix(in oklab, #000 78%, transparent);
-    border: 1px solid color-mix(in oklab, var(--fg) 16%, transparent);
-    border-radius: 0.85rem;
-    backdrop-filter: blur(14px);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: clamp(0.75rem, 1.6vw, 1.25rem);
   }
-  .nav__menu[hidden] { display: none; }
-  .nav__menu button {
-    width: 100%;
-    text-align: right;
-    padding: 0.55em 0.7em;
-    background: none;
-    border: 0;
-    border-radius: 0.55rem;
-    color: color-mix(in oklab, var(--fg) 72%, transparent);
-    font-family: var(--font-display);
-    font-size: 0.98rem;
-    font-weight: 400;
-    cursor: pointer;
-    transition: color 0.25s var(--ease), background-color 0.25s var(--ease);
+  .bento__bio   { grid-column: span 7; grid-row: span 2; }
+  .bento__facts { grid-column: span 5; }
+  .bento__kit   { grid-column: span 5; }
+
+  .bento__pad {
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    height: 100%;
+    display: grid;
+    align-content: start;
+    gap: 1.1em;
   }
-  .nav__menu button:hover,
-  .nav__menu button:focus-visible {
-    color: var(--fg);
-    background: color-mix(in oklab, var(--fg) 8%, transparent);
+  .bento__label { margin-bottom: 0.4rem; }
+  .bento__bio .t-body { margin: 0; max-width: 46ch; }
+
+  .kit { list-style: none; margin: 0; padding: 0; display: grid; }
+  .kit__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--color-hairline);
+  }
+  .kit__row:first-child { border-top: 0; padding-top: 0; }
+  .kit__name { color: var(--color-ink); }
+  .kit__role { text-align: right; }
+
+  @media (max-width: 900px) {
+    .bento__bio,
+    .bento__facts,
+    .bento__kit { grid-column: span 12; grid-row: auto; }
   }
 
-  @media (max-width: 560px) {
-    .nav__label { display: none; }
-    .nav__btn { padding: 0.55em; }
+  /* ---- contact ----------------------------------------------------------- */
+  .contact__heading { margin: 0.75rem 0 clamp(2.5rem, 6vh, 4rem); }
+  .links { list-style: none; margin: 0; padding: 0; display: grid; }
+  .links a {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.5rem;
+    padding: clamp(1.1rem, 2.4vh, 1.6rem) 0;
+    border-top: 1px solid var(--color-hairline);
+    text-decoration: none;
+    color: var(--color-ink);
+    transition: color var(--dur-panel) var(--ease-out);
+  }
+  .links li:last-child a { border-bottom: 1px solid var(--color-hairline); }
+  .links a:hover { color: var(--color-oxide); }
+  .links__value { transition: transform var(--dur-panel) var(--ease-out); }
+  .links a:hover .links__value { transform: translateX(6px); }
+  .links__pip {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    background: var(--color-sunken);
+    transition:
+      transform var(--dur-panel) var(--ease-out),
+      background-color var(--dur-panel) var(--ease-out);
+  }
+  .links__pip svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .links a:hover .links__pip {
+    transform: translate(2px, -2px);
+    background: var(--color-oxide-wash);
   }
 
-  /* ---- detail mode ------------------------------------------------------- */
+  @media (max-width: 640px) {
+    .links a { grid-template-columns: minmax(0, 1fr) auto; gap: 0.35rem 1rem; }
+    .links__kind { grid-column: 1 / -1; }
+  }
 
-  /* Everything that belongs to the scrolling site steps aside while a product
-     is being inspected. This is driven from the frame loop, NOT from a
-     `html.is-detail` CSS rule: an earlier attempt used `:global(html.is-detail)
-     .hero`, and Astro's scoped-style compilation did not match it — measured
-     opacity stayed at 1 with the class correctly set. Frame-driven is also how
-     the stop panels already work, so there is one authority over opacity
-     instead of a CSS rule racing per-frame inline styles. */
+  /* ---- footer ------------------------------------------------------------ */
+  .footer { padding-block: clamp(2.5rem, 6vh, 4rem) clamp(2.5rem, 6vh, 4rem); }
+  .footer__grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-hairline);
+  }
+  .footer__colophon { text-align: right; }
+  @media (max-width: 640px) { .footer__colophon { text-align: left; } }
 
+  /* ---- detail overlay ---------------------------------------------------- */
   .detail {
     position: fixed;
     inset: 0;
@@ -647,179 +673,189 @@ import { TRACK_VH } from '../lib/stops';
     align-content: end;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.45s var(--ease);
-    z-index: 5;
+    transition: opacity var(--dur-panel) var(--ease-out);
+    z-index: var(--z-overlay);
   }
   .detail[hidden] { display: none; }
   .detail.is-open { opacity: 1; }
 
   .detail__panel {
     pointer-events: auto;
-    width: min(38ch, 40vw);
-    margin: 0 0 clamp(3rem, 10vh, 7rem) clamp(1.5rem, 6vw, 6rem);
+    width: min(40ch, 42vw);
+    margin: 0 0 clamp(2.5rem, 8vh, 5rem) var(--gutter);
     display: grid;
-    gap: clamp(0.8rem, 2vh, 1.3rem);
+    justify-items: start;
+    gap: clamp(0.7rem, 1.8vh, 1.1rem);
+    padding: clamp(1.5rem, 3vw, 2.25rem);
+    background: color-mix(in oklab, var(--color-surface) 82%, transparent);
+    backdrop-filter: blur(20px) saturate(150%);
+    border-radius: 1.5rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), var(--shadow-float);
   }
-  .detail__index { color: color-mix(in oklab, var(--fg) 45%, transparent); }
-  .detail__title {
-    margin: 0;
-    font-size: clamp(1.9rem, 4vw, 3.4rem);
-    color: #fff;
-  }
-  .detail__body {
-    display: grid;
-    gap: 0.9em;
-    font-family: var(--font-mono);
-    font-size: clamp(0.78rem, 1vw, 0.9rem);
-    line-height: 1.65;
-    letter-spacing: 0.02em;
-    color: color-mix(in oklab, var(--fg) 74%, transparent);
-  }
-  .detail__body p { margin: 0; }
-
-  .detail__back {
-    justify-self: start;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6em;
-    margin-top: 0.5rem;
-    padding: 0.6em 1.1em;
-    background: color-mix(in oklab, #000 55%, transparent);
-    border: 1px solid color-mix(in oklab, var(--fg) 20%, transparent);
-    border-radius: 999px;
-    color: color-mix(in oklab, var(--fg) 85%, transparent);
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    transition: color 0.3s var(--ease), border-color 0.3s var(--ease);
-  }
-  .detail__back:hover,
-  .detail__back:focus-visible {
-    color: var(--fg);
-    border-color: color-mix(in oklab, var(--fg) 50%, transparent);
-  }
+  .detail__title { margin: 0; }
+  .detail__body { display: grid; gap: 0.8em; }
+  .detail__body p { margin: 0; font-size: 0.95rem; line-height: 1.6; color: var(--color-ink-2); }
+  .detail__back { margin-top: 0.35rem; }
 
   .detail__hint {
     position: absolute;
-    right: clamp(1.5rem, 6vw, 6rem);
-    bottom: clamp(1.5rem, 5vh, 3rem);
-    color: color-mix(in oklab, var(--fg) 38%, transparent);
+    right: var(--gutter);
+    bottom: clamp(1.5rem, 4vh, 2.5rem);
   }
 
   @media (max-width: 900px) {
-    .detail__panel { width: auto; margin-right: clamp(1.5rem, 6vw, 6rem); }
+    .detail__panel { width: auto; margin-right: var(--gutter); }
     .detail__hint { display: none; }
   }
 
-  /* Below the fold of a phone the object owns the frame; the panel drops to the
-     bottom rather than fighting it for horizontal room. */
-  @media (max-width: 640px) {
-    .stop {
-      --stop-y: 0%;
-      top: auto;
-      bottom: clamp(3.5rem, 12vh, 7rem);
-      left: clamp(1.25rem, 6vw, 3rem);
-      right: clamp(1.25rem, 6vw, 3rem);
-      width: auto;
-      text-align: left;
-      justify-items: start;
-    }
-    .stop__cta { justify-items: start; }
-    .stop__rule { transform-origin: left; }
+  .probe {
+    position: fixed;
+    left: var(--gutter);
+    bottom: 1rem;
+    pointer-events: none;
+    z-index: var(--z-chrome);
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .hero__hint { animation: none; opacity: 0.6; }
-    .stop__rule { transition: none; }
+  /* ---- scroll reveal -----------------------------------------------------
+     Authored only under .js, so with scripting off the content renders
+     normally instead of staying at opacity 0 forever. A heavy fade-up with a
+     blur resolve, per the direction — elements arrive with mass rather than
+     popping. Transform and opacity and filter only; nothing here can trigger
+     layout. */
+  :global(html.js) [data-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+    filter: blur(6px);
+    transition:
+      opacity var(--dur-reveal) var(--ease-out),
+      transform var(--dur-reveal) var(--ease-out),
+      filter var(--dur-reveal) var(--ease-out);
   }
+  :global(html.js) [data-reveal].is-in {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  /* Stagger. Delay is a custom property so the cascade stays declarative and
+     the observer does not have to compute per-element timing. */
+  :global(html.js) [data-reveal-delay="1"] { transition-delay: 70ms; }
+  :global(html.js) [data-reveal-delay="2"] { transition-delay: 140ms; }
+  :global(html.js) [data-reveal-delay="3"] { transition-delay: 210ms; }
+  :global(html.js) [data-reveal-delay="4"] { transition-delay: 280ms; }
+  :global(html.js) [data-reveal-delay="5"] { transition-delay: 350ms; }
 </style>
 
 <script>
-  import { initLightBeam } from '../scenes/light-beam';
-  import { initNebula } from '../scenes/nebula';
-  import { initStarfield } from '../scenes/starfield';
-  import { initNomadStop } from '../scenes/nomad-stop';
-  import { initShifuStop } from '../scenes/shifu-stop';
+  import { initStudio } from '../scenes/studio';
   import { initInspect } from '../scenes/inspect';
-  import { onFrame, view } from '../lib/loop';
-  import { warpTo, warp } from '../lib/warp';
+  import { onFrame } from '../lib/loop';
   import { detail, enterDetail, exitDetail, onDetailChange } from '../lib/detail';
 
-  const probe = document.querySelector<HTMLElement>('[data-probe]');
-  const heroSub = document.querySelector<HTMLElement>('[data-hero-sub]');
-  const threshold = document.querySelector<HTMLElement>('[data-threshold]');
-  const panels: Array<[string, HTMLElement | null]> = [
-    ['nomad', document.querySelector<HTMLElement>('[data-stop="nomad"]')],
-    ['shifu', document.querySelector<HTMLElement>('[data-stop="shifu"]')],
-  ];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Null until the first frame decides, so the very first evaluation always
-  // writes both aria-hidden and inert rather than short-circuiting.
-  const panelOn: Record<string, boolean | null> = { nomad: null, shifu: null };
-  for (const [, el] of panels) if (el) (el as any).inert = true;
+  // ---- scroll reveal ---------------------------------------------------------
+  // IntersectionObserver, never a scroll listener: a scroll handler that reads
+  // geometry runs on every scroll event and forces a reflow each time, which is
+  // the single most reliable way to lose frames on mobile.
+  //
+  // unobserve after firing — these are entrances, not a state that tracks
+  // scroll position, and re-animating on the way back up is the thing that
+  // makes a long page feel restless.
+  const revealables = document.querySelectorAll<HTMLElement>('[data-reveal]');
+  if (revealables.length) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add('is-in');
+          io.unobserve(e.target);
+        }
+      },
+      // Fire a little before the element reaches the fold so the motion has
+      // resolved by the time it is properly in view, rather than starting the
+      // moment it appears and being read mid-transition.
+      { rootMargin: '0px 0px -12% 0px', threshold: 0.1 },
+    );
+    for (const el of revealables) io.observe(el);
+  }
 
-  // ---- warp navigation -------------------------------------------------------
-  // Wired outside boot() so the nav works even if the WebGL stage fails: the
-  // scroll still happens, it simply does not streak.
-  /**
-   * The camera's FOV once the portal has settled, in degrees. light-beam
-   * computes it as BASE_FOV + progress * (DETAIL_FOV - BASE_FOV) * 0.35, which
-   * lands here at progress 1. Framing has to be solved against the RESTING
-   * frustum, not the 142° peak the transition passes through.
-   */
-  const DETAIL_REST_FOV = 45.8;
-  /** Air around the product inside the frame. */
-  const FRAME_MARGIN = 1.28;
+  // ---- nav: where am I -------------------------------------------------------
+  const sections = ['work', 'about', 'contact']
+    .map((id) => document.getElementById(id))
+    .filter(Boolean) as HTMLElement[];
+  const navlinks = new Map<string, HTMLElement>();
+  for (const a of document.querySelectorAll<HTMLElement>('[data-navlink]')) {
+    navlinks.set(a.dataset.navlink!, a);
+  }
 
-  const menu = document.querySelector<HTMLElement>('[data-warp-menu]');
-  const searchBtn = document.querySelector<HTMLButtonElement>('[data-warp-search]');
+  if (sections.length) {
+    const spy = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const link = navlinks.get(e.target.id);
+          if (!link) continue;
+          if (e.isIntersecting) {
+            for (const l of navlinks.values()) l.removeAttribute('data-active');
+            link.setAttribute('data-active', '');
+          }
+        }
+      },
+      // A band across the middle of the viewport. Whichever section occupies it
+      // is the one you are reading — using the whole viewport would light up
+      // two links at once on every boundary.
+      { rootMargin: '-45% 0px -45% 0px' },
+    );
+    for (const s of sections) spy.observe(s);
+  }
 
-  const setMenu = (open: boolean) => {
-    if (!menu || !searchBtn) return;
-    menu.hidden = !open;
-    searchBtn.setAttribute('aria-expanded', String(open));
-  };
-
-  document.querySelector('[data-warp-home]')?.addEventListener('click', () => {
-    setMenu(false);
-    warpTo(0);
-  });
-
-  searchBtn?.addEventListener('click', () => setMenu(Boolean(menu?.hidden)));
-
-  for (const btn of document.querySelectorAll<HTMLElement>('[data-warp-to]')) {
-    btn.addEventListener('click', () => {
-      setMenu(false);
-      warpTo(Number(btn.dataset.warpTo));
+  // In-page anchors go through Lenis so they use the SAME smoothing as the
+  // wheel. Native smooth scrolling would run on its own curve and visibly
+  // disagree with every other movement on the page.
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')) {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href')!.slice(1);
+      const target = document.getElementById(id);
+      const lenis = (window as any).__lenis;
+      if (!target || !lenis) return;
+      e.preventDefault();
+      lenis.scrollTo(target, { offset: 0, duration: reduced ? 0 : 1.1 });
+      history.replaceState(null, '', `#${id}`);
     });
   }
 
-  // Escape closes, and click-away closes — a menu that can only be dismissed by
-  // its own button is a trap on a page with no other chrome.
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setMenu(false);
-  });
-  document.addEventListener('pointerdown', (e) => {
-    if (menu && !menu.hidden && !(e.target as Element)?.closest('.nav')) setMenu(false);
-  });
+  // ---- local time ------------------------------------------------------------
+  // The visitor's clock, not the server's — which is why it is written here and
+  // never rendered on the server. A greeting the server guessed would flash the
+  // wrong time of day before correcting itself.
+  const clockEl = document.querySelector<HTMLElement>('[data-clock]');
+  const writeClock = () => {
+    if (!clockEl) return;
+    const now = new Date();
+    const h = now.getHours();
+    const part = h < 5 ? 'Night' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
+    const hh = String(h).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    clockEl.textContent = `Good ${part} · ${hh}:${mm} local`;
+  };
+  writeClock();
+  setInterval(writeClock, 30_000);
 
   // ---- detail mode -----------------------------------------------------------
   const COPY: Record<string, { index: string; title: string; body: string[] }> = {
     nomad: {
-      index: '01 — Detail',
+      index: '01 — Nomad Brewer',
       title: 'Nomad Brewer',
       body: [
-        'A modular outdoor coffee and tea brewing device. The body separates into stacked components that travel nested and assemble by feel, without a manual.',
-        'Each joint is a twist-lock: a quarter turn seats and seals it, so the whole stack can be built and struck with cold hands and one free hand.',
-        'Dark matte ceramic for the structure, frosted glass for the vessels — you need to read the brew level without opening anything.',
+        'The body separates into stacked components that travel nested and assemble by feel. Each joint is a twist-lock — a quarter turn seats and seals it.',
+        'Dark matte ceramic for the structure, frosted glass for the vessels, so the brew level stays readable without opening anything.',
       ],
     },
     shifu: {
-      index: '02 — Detail',
+      index: '02 — Shifu 26',
       title: 'Shifu 26',
       body: [
-        'Formula Student bodywork for Ozu Racing, developed in the Composites & Aerodynamics sub-team.',
-        'Carbon fibre skins over a steel spaceframe, with the enamel details kept to the minimum the regulations allow.',
-        'The model shown is the full assembly: 1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without changing a single material definition.',
+        'Formula Student bodywork for Ozu Racing: carbon fibre skins over a steel spaceframe, developed in the composites and aerodynamics sub-team.',
+        '1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without altering a single material definition.',
       ],
     },
   };
@@ -843,16 +879,13 @@ import { TRACK_VH } from '../lib/stops';
     );
   };
 
-  // The overlay appears at the far end of the portal, not at the click — the
-  // transition is the point, and text sliding in over a moving camera would
-  // undercut it.
   onDetailChange((s) => {
     if (!detailEl) return;
     if (s.mode === 'active') {
       detailEl.hidden = false;
       // Force a reflow so the browser registers the un-hidden state before the
       // class flips, which is what makes the opacity transition actually run.
-      // This was a requestAnimationFrame callback: rAF does not fire in a
+      // This was a requestAnimationFrame callback once: rAF does not fire in a
       // throttled or hidden tab, so the overlay could be revealed with its
       // opacity permanently stuck at 0. A synchronous reflow has no such
       // dependency.
@@ -861,17 +894,16 @@ import { TRACK_VH } from '../lib/stops';
     } else {
       detailEl.classList.remove('is-open');
       if (s.mode === 'idle') {
-        // Wait out the fade before removing from the a11y tree.
         setTimeout(() => {
           if (detail.mode === 'idle') detailEl.hidden = true;
-        }, 460);
+        }, 420);
       }
     }
   });
 
-  for (const btn of document.querySelectorAll<HTMLElement>('[data-stop-cta]')) {
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-inspect]')) {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.stopCta;
+      const id = btn.dataset.inspect;
       if (!id) return;
       fillDetail(id);
       enterDetail(id);
@@ -883,188 +915,70 @@ import { TRACK_VH } from '../lib/stops';
     if (e.key === 'Escape' && detail.mode === 'active') exitDetail();
   });
 
+  // ---- boot ------------------------------------------------------------------
+  const probe = document.querySelector<HTMLElement>('[data-probe]');
+
   const boot = async () => {
     const api = (window as any).__scene;
-    if (!api || (window as any).__beamScene) return;
+    if (!api || (window as any).__studio) return;
 
     try {
-      const beam = await initLightBeam(api);
-      (window as any).__beamScene = beam;
+      const studio = await initStudio(api);
+      (window as any).__studio = studio;
 
-      // The permanent atmosphere, in draw order beneath everything. Neither of
-      // these belongs to the beam group, so the white-out kill cannot reach
-      // them — they are what the showcase is staged in.
-      const nebula = initNebula(api, beam);
-      (window as any).__nebula = nebula;
+      const inspect = await initInspect(api, studio);
+      (window as any).__inspect = inspect;
 
-      const stars = initStarfield(api, beam);
-      (window as any).__starfield = stars;
-
-      initInspect(api).then((ins) => {
-        (window as any).__inspectHandle = ins;
-      });
-
-      initNomadStop(api, beam)
-        .then((nomad) => {
-          (window as any).__nomadStop = nomad;
-        })
-        .catch((err) => {
-          if (probe) probe.textContent = 'stop 01 · model failed — see console';
-          console.error('[nomad]', err);
-        });
-
-      // SHIFU loads a 539KB model, so it must not block the rest of the scene
-      // coming up. It arms itself whenever it lands; the stop is 7.4vh down the
-      // track and nothing before that depends on it.
-      initShifuStop(api, beam)
-        .then((shifu) => {
-          (window as any).__shifuStop = shifu;
-          if (probe) {
-            probe.textContent =
-              `beam · shifu ${shifu.info.meshes} meshes · ` +
-              `${shifu.info.triangles.toLocaleString()} tris · native materials`;
-          }
-        })
-        .catch((err) => {
-          if (probe) probe.textContent = 'stop 02 · model failed — see console';
-          console.error('[shifu]', err);
-        });
-
-      if (probe) probe.textContent = 'beam · live · loading shifu';
-
-      // Everything belonging to the scrolling site, dimmed together while a
-      // product is being inspected.
-      const siteChrome = [
+      // Everything belonging to the scrolling page steps aside while a product
+      // is being inspected. Driven from the frame loop rather than from a
+      // `html.is-detail` CSS rule: an earlier build used
+      // `:global(html.is-detail) .hero` and Astro's scoped-style compilation
+      // did not match it, leaving measured opacity at 1 with the class
+      // correctly set.
+      const pageChrome = [
         document.querySelector<HTMLElement>('.hero'),
-        document.querySelector<HTMLElement>('.about'),
+        document.querySelector<HTMLElement>('.work'),
+        document.querySelector<HTMLElement>('#about'),
+        document.querySelector<HTMLElement>('#contact'),
+        document.querySelector<HTMLElement>('.footer'),
         document.querySelector<HTMLElement>('.nav'),
-        document.querySelector<HTMLElement>('.probe'),
       ].filter(Boolean) as HTMLElement[];
 
-      // The DOM layer sits at z-index 1, directly over the canvas, and it is
-      // as tall as the whole track — so it swallows every pointer event before
-      // OrbitControls can see one. Dimming its children was not enough: the
-      // container itself still hit-tests. It is disabled wholesale during
-      // detail mode, and the overlay panel re-enables pointer-events on itself
-      // (a child may opt back in even when an ancestor has opted out).
+      // The DOM layer sits at z-index 1 directly over the canvas and is as tall
+      // as the document, so it swallows every pointer event before
+      // OrbitControls can see one. Dimming its children is not enough — the
+      // container itself still hit-tests.
       const domLayer = document.querySelector<HTMLElement>('main.layer');
 
       onFrame(() => {
-        const svh = view.scrollY / Math.max(1, view.vh);
-
-        // 1 on the normal site, 0 once the portal has fully opened. Squared so
-        // the page is out of the way early in the transition rather than
-        // lingering under the FOV distortion.
-        const siteFade = Math.pow(1 - detail.progress, 2);
-        for (const el of siteChrome) {
-          el.style.opacity = String(siteFade);
-          el.style.pointerEvents = siteFade < 0.05 ? 'none' : '';
+        // 1 on the page, 0 once inspection has fully opened. Squared so the
+        // page is out of the way early rather than lingering under the dolly.
+        const fade = Math.pow(1 - detail.progress, 2);
+        for (const el of pageChrome) {
+          el.style.opacity = String(fade);
+          el.style.pointerEvents = fade < 0.05 ? 'none' : '';
         }
-        // Opacity untouched here — the overlay lives inside this element.
         if (domLayer) {
           domLayer.style.pointerEvents = detail.progress > 0.02 ? 'none' : '';
         }
-
-        // Subtitle: full at rest, gone by 0.15vh. Authored in viewport-heights
-        // to match the brief directly rather than in normalised progress,
-        // which would change meaning every time the track length changes.
-        if (heroSub) {
-          const k = Math.min(1, svh / 0.15);
-          heroSub.style.opacity = String((1 - k * k) * siteFade);
-        }
-
-        // Where the portal is aiming. Recomputed every frame rather than
-        // captured on click, because the stop's own reveal animation is still
-        // moving the group while the portal runs — a captured point would be
-        // stale by the time the camera arrived.
-        const stopHandle =
-          detail.stopId === 'nomad'
-            ? (window as any).__nomadStop
-            : detail.stopId === 'shifu'
-              ? (window as any).__shifuStop
-              : null;
-        if (stopHandle) {
-          const g = stopHandle.group;
-          // Distance is solved from the model's actual EXTENT and the camera's
-          // real frustum, not from a bounding-sphere radius.
-          //
-          // radius * 2.1 under-framed anything tall and thin: the brewer fits
-          // into a 4.8-unit box on its long axis, so its sphere radius is
-          // dominated by height while its width contributes almost nothing —
-          // the old formula put the camera inside the height it needed to see.
-          // Solving vertical and horizontal separately and taking the larger
-          // guarantees the whole product is inside the frustum whatever its
-          // proportions or the window's aspect.
-          const fs = stopHandle.frameSize;
-          const halfFov = (DETAIL_REST_FOV * Math.PI) / 180 / 2;
-          const aspect = api.camera.aspect || 1.6;
-          const distV = fs.y / 2 / Math.tan(halfFov);
-          const distH = fs.x / 2 / (Math.tan(halfFov) * aspect);
-          (window as any).__detailTarget = {
-            x: g.position.x,
-            y: g.position.y,
-            z: g.position.z,
-            // Half the depth is added because the near face sits that much
-            // closer than the centre the distance is measured to.
-            dist: Math.max(distV, distH) * FRAME_MARGIN + fs.z / 2,
-          };
-        }
-
-        // "Welcome." belongs to the white plateau and nowhere else. Keyed to
-        // the dive rather than to scroll so it can never drift out of the
-        // white — it fades in over the last of the blow-out and is gone before
-        // the frame has any colour to compete with.
-        if (threshold) {
-          const d = beam.diveRef.value;
-          const k = Math.max(0, Math.min(1, (d - 0.82) / 0.16));
-          // Hard-zeroed during a warp. A Home or Search jump flies THROUGH the
-          // dive window at speed, so the plateau is crossed in a few frames and
-          // the card would strobe on and off in passing. Keyed to warp.active
-          // rather than to warp.value: the value dips at both ends of the
-          // envelope, which would let the card flicker back in mid-flight.
-          threshold.style.opacity = warp.active ? '0' : String(k * k * (3 - 2 * k));
-        }
-
-        // The scene is the single authority on stop presence — the panel reads
-        // it rather than recomputing from scroll, so type and geometry can
-        // never disagree about where the stop is.
-        for (const [id, el] of panels) {
-          if (!el) continue;
-          const f = beam.focusOf[id] ?? 0;
-          // The stop's focus is already high on the approach to the dive — so
-          // ungated the panel would fade in BEFORE the threshold, be wiped by
-          // the white-out, then fade in a second time. revealRef keeps it shut
-          // until the camera is coming back out.
-          // siteFade folded in here rather than fighting it: the panel's
-          // opacity already has a per-frame owner, so a competing CSS rule
-          // would simply be overwritten on the next tick.
-          const eased = f * f * (3 - 2 * f) * beam.revealRef.value * siteFade;
-          el.style.opacity = String(eased);
-          el.style.transform = `translate3d(0, calc(var(--stop-y) + ${(1 - eased) * 18}px), 0)`;
-          // Tracked in JS, not read back off the attribute. Reading the
-          // attribute meant the initial state (already aria-hidden in the
-          // markup) matched on the first frame, the branch never ran, and
-          // `inert` was never set — leaving an invisible panel in the tab
-          // order until the first time the stop toggled.
-          const on = eased > 0.5;
-          if (panelOn[id] !== on) {
-            panelOn[id] = on;
-            el.setAttribute('aria-hidden', String(!on));
-            (el as any).inert = !on;
-          }
-        }
       });
+
+      if (probe) {
+        const n = studio.info.nomad;
+        const s = studio.info.shifu;
+        probe.textContent =
+          `studio · nomad ${n.meshes}m/${n.triangles.toLocaleString()}t · ` +
+          `shifu ${s.meshes}m/${s.triangles.toLocaleString()}t`;
+      }
     } catch (err) {
-      if (probe) probe.textContent = 'beam · failed — see console';
-      console.error('[beam]', err);
+      if (probe) {
+        probe.hidden = false;
+        probe.textContent = 'studio · failed — see console';
+      }
+      console.error('[studio]', err);
     }
   };
 
   document.addEventListener('stage:ready', boot);
   if ((window as any).__scene?.ready) boot();
-
-  // The inline greeting script runs at parse time and so does not re-run after
-  // a ClientRouter swap, which would leave a stale time of day on any internal
-  // navigation back to this page.
-  document.addEventListener('astro:after-swap', () => (window as any).__setGreeting?.());
 </script>
