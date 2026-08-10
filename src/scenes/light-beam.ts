@@ -57,7 +57,14 @@ const DIVE_EXPOSURE = 7;
 
 const BLOOM_STRENGTH = 0.85;
 const BLOOM_RADIUS = 0.28;
-const BLOOM_THRESHOLD = 0.8;
+/**
+ * Raised from 0.8 to keep the product models out of the bloom pass once the
+ * light rig was tripled. The beam's core runs far above 1.0 in linear terms —
+ * intensity 1.9 against a core gain of 1.0, plus up to 3.6x from the pump — so
+ * it still blooms hard at this threshold, while a diffuse surface lit to ~0.9
+ * sits underneath it and stays halo-free.
+ */
+const BLOOM_THRESHOLD = 1.35;
 const DIVE_BLOOM_STRENGTH = 3.2;
 const DIVE_BLOOM_RADIUS = 0.9;
 /** Peak additive light emitted by the flash quad. */
