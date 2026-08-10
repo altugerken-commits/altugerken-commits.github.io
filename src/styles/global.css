@@ -28,18 +28,35 @@
   --color-sunken:   #eae9e4;  /* recessed — wells, insets */
   --color-hairline: #dedcd6;  /* the only border colour */
 
-  --color-ink:   #161513;  /* headings, primary text */
-  --color-ink-2: #45433e;  /* body copy */
-  --color-ink-3: #6e6b64;  /* secondary, captions */
-  --color-ink-4: #9a968d;  /* labels, disabled, hairline text */
+  /* The ink ramp, with its measured contrast against --color-paper. Every
+     value here was computed from the rendered colour, not eyeballed:
+
+       ink    16.45:1  headings, primary text
+       ink-2   8.90:1  body copy
+       ink-3   4.79:1  secondary, captions, and ALL small labels — the AA floor
+       ink-4   2.66:1  NON-TEXT ONLY
+
+     ink-4 is deliberately below AA and must never carry a word. It exists for
+     rules, ticks and dividers, where contrast requirements do not apply. An
+     earlier pass used it for .t-label and put 11px spec keys, the clock and the
+     footer at 2.66:1 — three separate AA failures from one wrong token. */
+  --color-ink:   #161513;
+  --color-ink-2: #45433e;
+  --color-ink-3: #6e6b64;
+  --color-ink-4: #9a968d;
 
   /* ONE accent. Desaturated oxide orange (HSL 20°, 58%, 44%) — a workshop
      colour: safety orange aged down to clay. It references machine shops and
      Formula Student rather than a product category. Saturation is held under
      the 80% ceiling so it sits inside the neutral family instead of screaming
      out of it. Used only for: eyebrow rules, the active nav state, focus, and
-     exactly one CTA per view. */
-  --color-oxide:      #b0562f;
+     exactly one CTA per view.
+
+     Measured at 4.89:1 on paper. The first choice, #b0562f, came out at
+     4.49:1 — a hundredth under AA, and invisible to anything but a
+     calculation. This is why the ratios are computed from rendered pixels
+     rather than trusted from the swatch. */
+  --color-oxide:      #a9502b;
   --color-oxide-soft: #d9885f;
   --color-oxide-wash: #f6ece7;
 
@@ -113,8 +130,12 @@
     background: var(--color-paper);
     color: var(--color-ink-2);
     -webkit-text-size-adjust: 100%;
-    /* Anchor jumps should glide, not teleport. */
-    scroll-behavior: smooth;
+    /* NO scroll-behavior: smooth. Lenis owns smoothing, and the CSS property
+       fights it — Lenis's own documentation requires its absence. It also
+       silently converts every programmatic scrollTo into an rAF-driven
+       animation, so a jump issued while the tab is throttled never arrives.
+       Anchor clicks are routed through lenis.scrollTo in the page script,
+       which glides on the same curve as the wheel. */
   }
 
   body {
@@ -234,7 +255,10 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     font-variant-numeric: tabular-nums;
-    color: var(--color-ink-4);
+    /* ink-3, not ink-4. At 11px this is body text as far as WCAG is concerned
+       and needs the full 4.5:1 — spec keys and the footer are information, not
+       decoration. */
+    color: var(--color-ink-3);
     margin: 0;
   }
 
