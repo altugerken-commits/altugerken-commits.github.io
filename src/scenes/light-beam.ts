@@ -131,6 +131,7 @@ const BEAM_FRAG = /* glsl */ `
   uniform float uPumpWidth;
   uniform float uPumpGain;
   uniform float uCamY;
+  uniform float uFade;
   uniform vec3  uColorA;
   uniform vec3  uColorB;
 
@@ -235,7 +236,7 @@ const BEAM_FRAG = /* glsl */ `
     // bleached bloom is what turns a cyan/violet beam into a grey searchlight.
     col = mix(col, vec3(1.0), clamp(core * uWhiteMix, 0.0, 1.0));
 
-    float a = e * n * pumpMul * uIntensity * (0.72 + uEnergy * 0.75) * uBoost;
+    float a = e * n * pumpMul * uIntensity * (0.72 + uEnergy * 0.75) * uBoost * uFade;
 
     // Feather both ends so the column never shows a hard terminator.
     a *= smoothstep(0.0, 0.05, vUv.y) * smoothstep(1.0, 0.95, vUv.y);
@@ -347,6 +348,9 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     uPumpWidth: { value: 9 },
     uPumpGain: { value: reduced ? 0.9 : PUMP_GAIN },
     uCamY: { value: 0 },
+    // Global dimmer for the whole beam. Driven by the portal so detail mode
+    // opens onto a pitch-black void rather than a lit stage.
+    uFade: { value: 1 },
     uColorA: { value: new THREE.Color(CYAN) },
     uColorB: { value: new THREE.Color(VIOLET) },
   };
@@ -799,6 +803,13 @@ export async function initLightBeam(api: StageApi): Promise<BeamHandle> {
     // The solitary crest sweeps relative to the camera, so it needs to know
     // where the camera is.
     shared.uCamY.value = camY;
+
+    // THE BLACK HOLE. Everything emissive dims to nothing across the portal,
+    // so inspection happens against a true void — the vivid galaxy is exactly
+    // the visual noise that makes overlay text hard to read and a matte product
+    // hard to judge. Linear in progress rather than keyed to the peak: this
+    // should be gone by the time the tear opens, not pulsing with it.
+    shared.uFade.value = 1 - dp;
 
     // WARP. The pump's period collapses, so the one-crest-per-3s signal
     // accelerates toward a continuous strobe running down the column — the

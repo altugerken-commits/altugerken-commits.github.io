@@ -62,6 +62,17 @@ export function matteify(
 
     if (tone !== 1) lambert.color.multiplyScalar(tone);
 
+    // Solid, unconditionally. The source materials already arrive opaque, but
+    // stating it here means a future export that ships an alpha channel or a
+    // BLEND alphaMode cannot quietly turn a product see-through — and it puts
+    // these four properties in one place instead of depending on what the
+    // exporter happened to write.
+    lambert.transparent = false;
+    lambert.opacity = 1;
+    lambert.depthWrite = true;
+    lambert.depthTest = true;
+    lambert.alphaTest = 0;
+
     // Reflections are the thing being removed; an env map would reintroduce
     // exactly what the swap is for.
     lambert.envMap = null;

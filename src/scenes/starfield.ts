@@ -270,9 +270,13 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     uniforms,
     transparent: true,
     blending: THREE.AdditiveBlending,
-    // Never occludes, never occluded. It is the floor of the scene.
+    // Never occludes — but it MUST be occludable. See nebula.ts: a transparent
+    // layer renders after the opaque queue regardless of renderOrder, so with
+    // depth testing off the field would draw over solid products standing in
+    // front of it. Stars sit at 90-520 units and the products at ~8, so depth
+    // testing resolves it correctly.
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     toneMapped: false,
   });
 
@@ -328,7 +332,7 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     toneMapped: false,
   });
 
@@ -370,7 +374,15 @@ export function initStarfield(api: any, beam: any): StarfieldHandle {
     streaks.visible = w > 0.002;
     // Points dim as the streaks take over, so the field does not read as twice
     // as bright mid-warp.
-    uniforms.uOpacity.value = BASE_OPACITY * (1 - w * 0.55);
+    //
+    // The second term is the black hole: the field fades to nothing across the
+    // portal so detail mode opens onto a void. Multiplied rather than
+    // branched, so warp-dimming and portal-dimming compose instead of one
+    // overriding the other.
+    const voidFade = 1 - detail.progress;
+    uniforms.uOpacity.value = BASE_OPACITY * (1 - w * 0.55) * voidFade;
+    points.visible = voidFade > 0.002;
+    if (streaks.visible) streaks.visible = voidFade > 0.002;
   });
 
   return {

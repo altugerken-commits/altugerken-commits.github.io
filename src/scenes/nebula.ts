@@ -15,7 +15,11 @@
 // has: it must stay far below the bloom threshold, or UnrealBloomPass lifts it
 // into a glow that competes with the beam.
 
+import { detail } from '../lib/detail';
+
 const RADIUS = 700;
+/** Resting intensity. The portal scales this to zero for detail mode. */
+const BASE_INTENSITY = 0.5;
 
 const VERT = /* glsl */ `
   varying vec3 vDir;
@@ -147,7 +151,7 @@ export function initNebula(api: any, beam: any): NebulaHandle {
     // tuned to. The constraint that survives is the bloom threshold: the
     // galaxy must still sit under it, or UnrealBloomPass lifts the whole sky
     // into a haze that eats the beam.
-    uIntensity: { value: 0.5 },
+    uIntensity: { value: BASE_INTENSITY },
     uOffset: { value: new THREE.Vector3() },
     uPurple: { value: new THREE.Color(0x7b3ff2) },
     uPink: { value: new THREE.Color(0xff3d9a) },
@@ -169,7 +173,19 @@ export function initNebula(api: any, beam: any): NebulaHandle {
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    depthTest: false,
+    // depthTest MUST stay on, and renderOrder alone is not a substitute.
+    //
+    // three renders the opaque queue first and the transparent queue second;
+    // renderOrder only sorts WITHIN a queue. This layer is transparent, so its
+    // renderOrder of -20 cannot place it behind opaque geometry — and with
+    // depth testing off nothing could occlude it either. The result was an
+    // additive galaxy painted straight over both product models, which read as
+    // the products being semi-transparent. Measured: +46 luma over every pixel
+    // of the brewer's silhouette.
+    //
+    // The sphere sits at radius 700 and the products at ~8 units, so depth
+    // testing rejects it cleanly wherever a product stands.
+    depthTest: true,
     toneMapped: false,
   });
 
@@ -200,6 +216,13 @@ export function initNebula(api: any, beam: any): NebulaHandle {
       -py * 0.06 + camera.position.y * 0.0016,
       t * 0.006,
     );
+
+    // Black hole: the galaxy dims to nothing across the portal so detail mode
+    // is inspected against a true void. Scaling the intensity rather than
+    // toggling visibility keeps the fade smooth and reversible — the exit runs
+    // the same expression backwards.
+    uniforms.uIntensity.value = BASE_INTENSITY * (1 - detail.progress);
+    mesh.visible = uniforms.uIntensity.value > 0.001;
   });
 
   return {
