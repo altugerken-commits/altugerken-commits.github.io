@@ -8,9 +8,14 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "check": "astro check",
+    "check": "astro check && tsc -p remotion/tsconfig.json --noEmit",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "media:studio": "remotion studio remotion/index.ts",
+    "media:render": "npm run media:webm && npm run media:mp4 && npm run media:poster",
+    "media:webm": "remotion render remotion/index.ts DraftingStrip public/media/drafting-strip.webm --codec=vp9",
+    "media:mp4": "remotion render remotion/index.ts DraftingStrip public/media/drafting-strip.mp4 --codec=h264",
+    "media:poster": "remotion still remotion/index.ts DraftingStrip public/media/drafting-strip.png --frame=60"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.2",
@@ -31,8 +36,10 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@gltf-transform/cli": "^4.4.2",
+    "@remotion/cli": "^4.0.507",
     "@types/node": "^26.1.2",
     "@types/three": "^0.185.4",
+    "remotion": "^4.0.507",
     "typescript": "^6.0.3"
   }
 }

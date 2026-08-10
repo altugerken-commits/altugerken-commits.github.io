@@ -219,6 +219,36 @@ const toolkit = [
           </div>
         </div>
 
+        {/* Pre-rendered in Remotion — see remotion/DraftingStrip.tsx. This is
+            the one asset on the site that is a fixed timeline rather than a
+            response to input, which is exactly the case a frame-indexed
+            renderer is for. It loops seamlessly: the grid travels exactly one
+            tile over the duration and every annotation starts and ends at
+            opacity 0, so the last frame is indistinguishable from the first.
+
+            Decorative, so aria-hidden. preload="none" and no autoplay
+            attribute: playback is started from script only when the card is on
+            screen AND motion is welcome, and paused again when it leaves. An
+            autoplaying loop costs battery for the whole visit otherwise. */}
+        <div class="bezel bento__process" data-reveal data-reveal-delay="3">
+          <div class="bezel__core bento__strip">
+            <video
+              class="strip"
+              data-strip
+              poster="/media/drafting-strip.png"
+              muted
+              loop
+              playsinline
+              preload="none"
+              aria-hidden="true"
+              tabindex="-1"
+            >
+              <source src="/media/drafting-strip.webm" type="video/webm" />
+              <source src="/media/drafting-strip.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
+
         <div class="bezel bento__kit" data-reveal data-reveal-delay="2">
           <div class="bezel__core bento__pad">
             <p class="t-label bento__label">Digital toolkit</p>
@@ -596,9 +626,24 @@ const toolkit = [
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: clamp(0.75rem, 1.6vw, 1.25rem);
   }
-  .bento__bio   { grid-column: span 7; grid-row: span 2; }
-  .bento__facts { grid-column: span 5; }
-  .bento__kit   { grid-column: span 5; }
+  .bento__bio     { grid-column: span 7; grid-row: span 2; }
+  .bento__facts   { grid-column: span 5; }
+  .bento__kit     { grid-column: span 5; }
+  .bento__process { grid-column: span 12; }
+
+  /* Flush — the strip is the card's whole content, so the inner plate carries
+     no padding and clips the video to its own radius instead. */
+  .bento__strip {
+    overflow: hidden;
+    line-height: 0;
+  }
+  .strip {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 1;
+    object-fit: cover;
+  }
 
   .bento__pad {
     padding: clamp(1.5rem, 3vw, 2.5rem);
@@ -626,7 +671,11 @@ const toolkit = [
   @media (max-width: 900px) {
     .bento__bio,
     .bento__facts,
-    .bento__kit { grid-column: span 12; grid-row: auto; }
+    .bento__kit,
+    .bento__process { grid-column: span 12; grid-row: auto; }
+    /* Taller crop on a phone: at full width the 4:1 strip is only ~85px and
+       the annotations become unreadable. */
+    .strip { aspect-ratio: 5 / 2; }
   }
 
   /* ---- contact ----------------------------------------------------------- */
@@ -829,6 +878,33 @@ const toolkit = [
       { rootMargin: '0px 0px -12% 0px', threshold: 0.1 },
     );
     for (const el of revealables) io.observe(el);
+  }
+
+  // ---- the drafting strip ----------------------------------------------------
+  // Decode only while it is on screen, and never at all under reduced motion.
+  // A looping <video autoplay> keeps a decoder alive for the whole visit even
+  // when it is three sections above the fold; under reduced motion the poster
+  // frame is the correct presentation, and it is already the element's poster
+  // so no fallback markup is needed.
+  const strip = document.querySelector<HTMLVideoElement>('[data-strip]');
+  if (strip && !reduced) {
+    const stripIO = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            // play() rejects if the tab has never been interacted with on some
+            // policies. It is muted so autoplay is normally permitted, but the
+            // rejection must still be swallowed or it surfaces as an unhandled
+            // promise rejection in the console.
+            strip.play().catch(() => {});
+          } else {
+            strip.pause();
+          }
+        }
+      },
+      { threshold: 0.15 },
+    );
+    stripIO.observe(strip);
   }
 
   // ---- nav: where am I -------------------------------------------------------

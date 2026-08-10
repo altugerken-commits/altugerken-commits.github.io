@@ -5,7 +5,8 @@
     "**/*"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "remotion"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",

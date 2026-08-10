@@ -127,24 +127,28 @@
       );
 
       // ---- GLB loader -------------------------------------------------------
+      // MESHOPT ONLY. DRACOLoader used to be wired here alongside it, on the
+      // reasoning that the original Blender exports ship
+      // KHR_draco_mesh_compression. They do — but the site does not load them.
+      // Read straight out of the GLB JSON chunks, both assets this page
+      // actually requests declare:
+      //
+      //   extensionsRequired: ["EXT_meshopt_compression", "KHR_mesh_quantization"]
+      //
+      // and neither mentions Draco. The decoder was 702 KB of the production
+      // bundle — the single largest chunk after three itself — supporting a
+      // format nothing asks for. If a Draco asset is ever added back, this is
+      // where the loader goes, and the asset will fail loudly at load with
+      // "decoder must be called before loading compressed files" rather than
+      // degrading silently.
       let gltfLoader: any = null;
       const loadGLB = async (url: string) => {
         if (!gltfLoader) {
           const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
-          const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js');
-          // Both codecs are wired, because both are in use: the original
-          // Blender exports ship KHR_draco_mesh_compression, and everything
-          // through the @gltf-transform/cli pipeline ships
-          // EXT_meshopt_compression. A loader missing either one fails at load
-          // with a bare "decoder must be called before loading compressed
-          // files" rather than degrading, so there is no silent fallback path.
           const { MeshoptDecoder } = await import(
             'three/examples/jsm/libs/meshopt_decoder.module.js'
           );
           gltfLoader = new GLTFLoader();
-          const draco = new DRACOLoader();
-          draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-          gltfLoader.setDRACOLoader(draco);
           gltfLoader.setMeshoptDecoder(MeshoptDecoder);
         }
         const gltf: any = await gltfLoader.loadAsync(url);

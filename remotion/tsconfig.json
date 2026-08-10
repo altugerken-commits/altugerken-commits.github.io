@@ -1,0 +1,19 @@
+{
+  "//": "Remotion builds this folder with its own esbuild bundler, never with Astro's Vite pipeline. It is excluded from the root tsconfig because Astro's strict config resolves the `remotion` package's exports map to the wrong declaration file and reports every named export as unexported — the render itself succeeds regardless. This config gives the folder the resolution Remotion actually expects, so an editor still type-checks it correctly.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": ["**/*.ts", "**/*.tsx", "../remotion.config.ts"]
+}
