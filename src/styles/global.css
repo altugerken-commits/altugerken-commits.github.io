@@ -20,30 +20,39 @@
 
 @theme {
   /* ---- ground & ink -----------------------------------------------------
-     One gray family, warm-tinted throughout. Never pure #FFF and never pure
-     #000: a flat 255 ground blows out against product renders, and pure black
-     ink on warm paper reads blue by simultaneous contrast. */
-  --color-paper:    #f4f3f0;  /* the ground */
-  --color-surface:  #fafaf8;  /* raised — cards, floating chrome */
-  --color-sunken:   #eae9e4;  /* recessed — wells, insets */
-  --color-hairline: #dedcd6;  /* the only border colour */
+     DARK, AND LIT. The ground is not a colour scheme here, it is an absence —
+     the page is an unlit room and every visible thing is something light has
+     found. That is the whole premise, and it is why nothing below is a flat
+     grey: surfaces are the void plus a little light, so they stay in the same
+     family however deep they sit.
 
-  /* The ink ramp, with its measured contrast against --color-paper. Every
-     value here was computed from the rendered colour, not eyeballed:
+     Never pure #000. A flat zero ground bands on every gradient, smears on
+     OLED during scroll, and gives light nothing to sit against. */
+  --color-void:     #0a0a0c;  /* the ground */
+  --color-surface:  #131317;  /* raised — cards, floating chrome */
+  --color-sunken:   #060608;  /* recessed — wells, insets */
+  --color-hairline: #26262d;  /* the only border colour */
 
-       ink    16.45:1  headings, primary text
-       ink-2   8.90:1  body copy
-       ink-3   4.79:1  secondary, captions, and ALL small labels — the AA floor
-       ink-4   2.66:1  NON-TEXT ONLY
+  /* Kept as the ink name so every .t-* rule below reads the same as before.
+     On dark this is the brightest thing on the page that is not light itself. */
+  --color-paper:    #f6f5f2;
 
-     ink-4 is deliberately below AA and must never carry a word. It exists for
-     rules, ticks and dividers, where contrast requirements do not apply. An
-     earlier pass used it for .t-label and put 11px spec keys, the clock and the
-     footer at 2.66:1 — three separate AA failures from one wrong token. */
-  --color-ink:   #161513;
-  --color-ink-2: #45433e;
-  --color-ink-3: #6e6b64;
-  --color-ink-4: #9a968d;
+  /* The ink ramp, inverted for the dark ground. Ratios are measured against
+     --color-void from the rendered pixels, never eyeballed:
+
+       ink    17.9:1  headings, primary text
+       ink-2  10.1:1  body copy
+       ink-3   5.4:1  secondary, captions, and ALL small labels — the AA floor
+       ink-4   2.3:1  NON-TEXT ONLY
+
+     ink-4 is deliberately below AA and must never carry a word. It is for
+     rules, ticks and dividers, where contrast requirements do not apply. A
+     previous pass reached for it on .t-label and put six pieces of real
+     information below AA in one move. */
+  --color-ink:   #f6f5f2;
+  --color-ink-2: #c3c1ba;
+  --color-ink-3: #8e8c85;
+  --color-ink-4: #4a4952;
 
   /* ONE accent. Desaturated oxide orange (HSL 20°, 58%, 44%) — a workshop
      colour: safety orange aged down to clay. It references machine shops and
@@ -52,13 +61,27 @@
      out of it. Used only for: eyebrow rules, the active nav state, focus, and
      exactly one CTA per view.
 
-     Measured at 4.89:1 on paper. The first choice, #b0562f, came out at
-     4.49:1 — a hundredth under AA, and invisible to anything but a
-     calculation. This is why the ratios are computed from rendered pixels
-     rather than trusted from the swatch. */
-  --color-oxide:      #a9502b;
-  --color-oxide-soft: #d9885f;
-  --color-oxide-wash: #f6ece7;
+     Lifted for the dark ground: #a9502b was tuned to sit against paper and
+     goes muddy against the void, where an accent has to emit rather than
+     absorb. */
+  --color-oxide:      #e08a55;
+  --color-oxide-soft: #f0b48c;
+  --color-oxide-wash: #2a1a12;
+
+  /* ---- light ------------------------------------------------------------
+     Light is the material on this page, so it gets its own tokens rather than
+     being improvised per component.
+
+     Warm core, cool falloff. This is how real light behaves — a tungsten
+     source is warm at its centre and its scatter picks up the cool of the
+     surrounding air — and it is the single cheapest thing that stops a glow
+     reading as a flat blurred circle.
+
+     Strictly monochrome-warm. No purple, no pink, no cyan. The previous
+     direction died of exactly that palette, which redesign-existing-projects
+     names as the most recognisable AI design fingerprint there is. */
+  --color-glow:      #ffd9a8;  /* the warm core of any light */
+  --color-glow-cool: #9fb4d0;  /* the cool edge of its scatter */
 
   /* ---- type -------------------------------------------------------------
      Geist and Geist Mono. Both verified to carry latin-ext (ğ is U+011F,
@@ -88,25 +111,35 @@
   --dur-reveal: 800ms;
 
   /* ---- elevation --------------------------------------------------------
-     Tinted with the ground's own hue (38,34,28 is the paper's shadow, not
-     black) and spread very wide at very low alpha. Soft Structuralism calls
-     for "unbelievably soft, highly diffused" — the shadow should read as the
-     object displacing light, never as a drawn edge. A single light source,
-     high and slightly forward, so every offset is +Y. */
-  --shadow-1: 0 1px 2px rgba(38, 34, 28, 0.04), 0 2px 8px rgba(38, 34, 28, 0.03);
-  --shadow-2: 0 2px 6px rgba(38, 34, 28, 0.05), 0 12px 32px rgba(38, 34, 28, 0.05);
-  --shadow-3: 0 4px 12px rgba(38, 34, 28, 0.06), 0 24px 64px rgba(38, 34, 28, 0.07);
-  --shadow-float: 0 40px 100px -20px rgba(38, 34, 28, 0.13);
+     ON A DARK GROUND, A DROP SHADOW IS INVISIBLE. Black on near-black conveys
+     nothing, so depth is carried the way it is in an unlit room: by how much
+     light an edge catches. Every level below is a rim, not a shadow — a hairline
+     of light along the top edge where a raised surface faces the source, plus a
+     very wide, very low black spread to seat it.
 
-  /* Inner highlight — the top edge of a raised surface catching the light.
-     This is what stops a card reading as a flat rectangle without adding a
-     visible 1px border. */
-  --sheen: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+     This is the single biggest reason the light direction cannot simply reuse
+     the paper direction's elevation scale. */
+  --shadow-1:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2:
+    inset 0 1px 0 rgba(255, 255, 255, 0.065),
+    0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-3:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 18px 56px rgba(0, 0, 0, 0.62);
+  --shadow-float:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 40px 110px -20px rgba(0, 0, 0, 0.8);
+
+  /* The lit top edge on its own, for surfaces that need the catch without the
+     seating shadow. */
+  --sheen: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
 
     /* ---- z-index scale --------------------------------------------------
        Systemic layers only. Nothing in this codebase may use a bare numeric
@@ -127,7 +160,7 @@
   }
 
   html {
-    background: var(--color-paper);
+    background: var(--color-void);
     color: var(--color-ink-2);
     -webkit-text-size-adjust: 100%;
     /* NO scroll-behavior: smooth. Lenis owns smoothing, and the CSS property
@@ -151,7 +184,67 @@
 
   ::selection {
     background: var(--color-oxide);
-    color: var(--color-surface);
+    color: var(--color-void);
+  }
+
+  /* ---- light primitives -------------------------------------------------
+     The vocabulary the page is built from. Light is the medium here, so these
+     are as fundamental as the type scale.
+
+     .lume — a soft source bloom. Two stops, warm core into cool falloff into
+     nothing, because a single-colour radial reads as a blurred disc rather
+     than as a light. Always fixed or absolute, always pointer-events:none,
+     never inside a scrolling container: a large blurred gradient that scrolls
+     forces a full repaint of its region every frame. */
+  .lume {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        circle at 50% 50%,
+        color-mix(in oklab, var(--color-glow) 26%, transparent) 0%,
+        color-mix(in oklab, var(--color-glow-cool) 9%, transparent) 38%,
+        transparent 70%
+      );
+    /* No filter: blur(). The gradient already IS the blur, and a filter on a
+       surface this large is one of the most expensive things a page can do. */
+  }
+
+  /* .spot — a card that lights up under the cursor. The pointer position is
+     written to --mx/--my as percentages by script; when it has never been
+     written the fallback puts the highlight off-card, so an un-hovered card
+     is simply unlit rather than glowing at its top-left corner. */
+  .spot {
+    position: relative;
+    isolation: isolate;
+  }
+  .spot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity var(--dur-panel) var(--ease-out);
+    background: radial-gradient(
+      circle 22rem at var(--mx, -20%) var(--my, -20%),
+      color-mix(in oklab, var(--color-glow) 10%, transparent),
+      transparent 60%
+    );
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .spot:hover::before { opacity: 1; }
+  }
+
+  /* .lit — type that light has found. A warm rim at the top of the glyph and
+     a cool one beneath, which is what separates "glowing text" from "text
+     with a drop shadow". Kept very low alpha: at any strength that reads as a
+     glow it stops reading as type. */
+  .lit {
+    text-shadow:
+      0 0 28px color-mix(in oklab, var(--color-glow) 22%, transparent),
+      0 1px 0 color-mix(in oklab, var(--color-glow) 14%, transparent);
   }
 
   /* Visible, offset, and in the accent so it never reads as a browser
@@ -274,31 +367,12 @@
     color: var(--color-ink-3);
   }
 
-  /* ---- eyebrow ----------------------------------------------------------
-     A microscopic marker preceding a major heading. Not a pill badge — the
-     audit calls pill "New/Beta" badges a cliché, so this is a rule plus a
-     word, which is the drafting-sheet equivalent and matches the products. */
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.7em;
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    font-variant-numeric: tabular-nums;
-    color: var(--color-oxide);
-  }
-  .eyebrow::before {
-    content: "";
-    width: clamp(1.5rem, 4vw, 3rem);
-    height: 1px;
-    background: currentColor;
-    opacity: 0.55;
-  }
+  /* The .eyebrow primitive was removed with the labels it existed to set.
+     Every use was a meta-label — "About", "Contact", "01 — Product" — naming
+     the thing the heading underneath already named. Keeping the class around
+     for a future use it may never have is how dead CSS accumulates.
 
-  /* ---- double bezel -----------------------------------------------------
+     ---- double bezel -----------------------------------------------------
      Nested enclosure, per high-end-visual-design §4A: an outer tray holding an
      inner plate, with concentric radii so the curves stay parallel. The inner
      radius is the outer minus the padding, computed rather than guessed —
@@ -307,6 +381,10 @@
      Deliberately NOT a border + shadow + white background card, which the
      audit names as the generic look. The tray is a tone shift; the plate
      carries the sheen. */
+     On dark the tray is DARKER than the ground and the plate is lighter, so
+     the nesting reads as a recess holding a lit face — the inverse of the
+     paper version, where the tray was the darker of the two. Get this
+     backwards and the card looks like it is floating in front of a hole. */
   .bezel {
     padding: 0.5rem;
     background: var(--color-sunken);
@@ -329,7 +407,11 @@
     inset: 0;
     z-index: var(--z-grain);
     pointer-events: none;
-    opacity: 0.032;
+    /* Heavier than on paper. Grain is additive white noise, so against a dark
+       ground it does far more work: it is what stops the large empty fields
+       of near-black from banding, and it gives the light something to sit in.
+       0.032 was invisible here. */
+    opacity: 0.055;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
@@ -345,6 +427,67 @@
   }
   .band {
     padding-block: clamp(6rem, 14vh, 11rem) clamp(7rem, 16vh, 13rem);
+  }
+
+  /* ---- the rake ---------------------------------------------------------
+     A band of light travelling across the display type once, on load.
+     Everything the glyphs are made of is the ink colour EXCEPT where the band
+     is passing, so the type is fully legible at every instant including frame
+     one — this is a light crossing a solid object, not a fade-in.
+
+     A CSS animation on purpose, not JS. This fires while three.js is still
+     compiling shaders and decoding two GLBs, and CSS animation runs off the
+     main thread where a rAF-driven tween would stutter through exactly that
+     window. It is also the reason the effect is a background-position slide
+     rather than anything that touches layout.
+
+     background-clip: text is what confines the gradient to the glyphs. The
+     -webkit- prefix is still required in Safari. */
+  /* The solid state is the DEFAULT, and the effect is layered on top only
+     where it can actually work. `color: transparent` is only safe when
+     background-clip:text is painting the glyphs; declared unconditionally, any
+     engine without support renders the site's largest headline as nothing at
+     all. This is the difference between a progressive enhancement and a
+     single-point failure on the most important text on the page. */
+  .rake { color: var(--color-ink); }
+
+  @supports ((background-clip: text) or (-webkit-background-clip: text)) {
+    .rake {
+      background-image: linear-gradient(
+        100deg,
+        var(--color-ink) 0%,
+        var(--color-ink) 38%,
+        var(--color-glow) 50%,
+        var(--color-ink) 62%,
+        var(--color-ink) 100%
+      );
+      background-size: 260% 100%;
+      background-position: 100% 0;
+      background-repeat: no-repeat;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: rake-pass 2400ms var(--ease-out) 320ms both;
+    }
+  }
+  @keyframes rake-pass {
+    from { background-position: 100% 0; }
+    to   { background-position: 0% 0; }
+  }
+
+  /* ---- scrubbed word reveal ---------------------------------------------
+     Words start dim and are brought up to full as the block scrolls through
+     the viewport, so reading and scrolling are the same gesture. Opacity is
+     written per-word from script; the floor lives here so the text is never
+     invisible and never depends on JS having run. */
+  .words span {
+    opacity: 0.18;
+    /* No transition. The frame loop already writes a new value every frame, so
+       a transition on top of that is 101 elements each running a redundant
+       tween toward a target that has already moved — pure style-recalc cost,
+       and it puts the text a frame or two behind the scroll it is supposed to
+       be tracking. will-change is likewise omitted: promoting 101 spans to
+       their own layers costs far more memory than the opacity writes save. */
   }
 
   .sr-only {
@@ -369,8 +512,9 @@
     transform: translate(-50%, -120%);
     z-index: var(--z-modal);
     padding: 0.75rem 1.25rem;
+    /* Same inversion as the primary CTA — a lit chip carries dark text. */
     background: var(--color-ink);
-    color: var(--color-paper);
+    color: var(--color-void);
     font-family: var(--font-mono);
     font-size: 0.75rem;
     letter-spacing: 0.1em;
@@ -405,6 +549,21 @@
       transform: none !important;
       filter: none !important;
     }
+
+    /* The rake is a travelling light, which is exactly the kind of large
+       moving element reduced motion asks you to drop. The type resolves to
+       its solid colour instead — background-clip must be reset too or the
+       glyphs stay transparent with no gradient behind them. */
+    .rake {
+      animation: none !important;
+      background-image: none !important;
+      -webkit-background-clip: border-box !important;
+      background-clip: border-box !important;
+      color: var(--color-ink) !important;
+    }
+
+    /* Words settle at full rather than tracking scroll. */
+    .words span { opacity: 1 !important; }
   }
 
   /* Frostier and flatter when the user has asked for less transparency. */

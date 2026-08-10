@@ -22,7 +22,7 @@
 // before the first frame is useful. An anchor with zero height parks its
 // product at scale 0, which is invisible rather than broken.
 
-import { onFrame, damp } from '../lib/loop';
+import { onFrame, damp, view } from '../lib/loop';
 import { matteify } from '../lib/matte';
 import { detail } from '../lib/detail';
 
@@ -95,6 +95,34 @@ const TILT = 0.055;
 const LAMBDA = 6;
 
 /**
+ * THE KEY LIGHT ORBITS WITH SCROLL.
+ *
+ * This is the page's signature, and the reason the direction is "dark and
+ * light-based" rather than just "dark". Scrolling does not move the camera and
+ * does not move the product — it moves the SOURCE. Highlights travel across
+ * the bodywork, the rim slides around the silhouette, and a face that was
+ * black is suddenly the brightest thing on screen.
+ *
+ * It works because the products are Lambert: with no specular term, every
+ * change you see is real diffuse falloff over real geometry rather than a
+ * highlight sliding over a surface. That is also why it cannot produce glare
+ * however far the light swings.
+ *
+ * The arc is a little over a quarter turn across the whole document. Enough
+ * that any two sections are lit differently; small enough that no section is
+ * lit from behind and lost.
+ */
+const KEY_ARC = Math.PI * 0.62;
+/** Where the key starts, radians about +Y. Upper-front-left. */
+const KEY_PHASE = -0.75;
+/** Orbit radius and height of the key. */
+const KEY_R = 5.4;
+const KEY_Y = 4.2;
+/** The rim trails the key around the far side, staying roughly opposite. */
+const RIM_R = 4.6;
+const RIM_Y = 2.6;
+
+/**
  * Convert a DOM rect into world-space position and extent on the z = 0 plane.
  *
  * Everything the layout-tracking depends on is here. The camera looks down -Z
@@ -128,7 +156,7 @@ function worldFromRect(
 }
 
 export async function initStudio(api: any) {
-  const { THREE, scene, camera, renderer, pointer, loadGLB } = api;
+  const { THREE, scene, camera, renderer, pointer, loadGLB, lights } = api;
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Pointer parallax is a hover affordance. On touch there is no hover, and
@@ -185,12 +213,42 @@ export async function initStudio(api: any) {
     return s.el;
   };
 
+  // Smoothed orbit angle. Damped rather than read raw from scroll so a wheel
+  // flick sweeps the light instead of snapping it — the light has mass.
+  let keyAngle = KEY_PHASE;
+
   const stop = onFrame((t, dt) => {
     const canvasW = renderer.domElement.clientWidth || 1;
     const canvasH = renderer.domElement.clientHeight || 1;
 
     // Detail mode takes the camera and drives the inspected product itself.
     const inDetail = detail.progress > 0.001;
+
+    // ---- the light orbits with the page ------------------------------------
+    // view.progress is document scroll 0..1, written once per frame by the
+    // clock. Inside detail mode the orbit is handed to the pointer instead:
+    // the page is frozen there, so scroll can no longer drive anything, and a
+    // light you can move by moving the mouse is the right affordance while
+    // inspecting an object up close.
+    if (lights?.key) {
+      const target = inDetail
+        ? KEY_PHASE + KEY_ARC * (0.5 + pointer.x * 0.45)
+        : KEY_PHASE + KEY_ARC * view.progress;
+      keyAngle = damp(keyAngle, target, 3.2, dt);
+
+      lights.key.position.set(
+        Math.sin(keyAngle) * KEY_R,
+        KEY_Y,
+        Math.cos(keyAngle) * KEY_R,
+      );
+      // The rim stays roughly opposite so the contour edge always exists,
+      // travelling around the far side as the key comes round the front.
+      lights.rim.position.set(
+        Math.sin(keyAngle + Math.PI * 0.85) * RIM_R,
+        RIM_Y,
+        Math.cos(keyAngle + Math.PI * 0.85) * RIM_R,
+      );
+    }
 
     for (const s of slots) {
       const el = resolve(s);

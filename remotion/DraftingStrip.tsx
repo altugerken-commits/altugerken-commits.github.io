@@ -20,10 +20,14 @@ import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remo
  * global.css by hand — there is no import that would catch a drift.
  */
 
-const PAPER = '#f4f3f0';
-const INK_4 = '#9a968d';
-const INK_2 = '#45433e';
-const OXIDE = '#a9502b';
+// Re-toned for the dark ground. On paper these were ink on white; here the
+// sheet is the void and the drawing is drawn in light, which is the same
+// inversion the CSS elevation scale goes through. A strip left on its original
+// light palette would tear a bright rectangle out of the middle of the page.
+const GROUND = '#0d0d10';
+const INK_4 = '#3d3d46';
+const INK_2 = '#c3c1ba';
+const OXIDE = '#e08a55';
 
 /** Grid tile, px. The translation per loop is exactly this. */
 const TILE = 40;
@@ -66,7 +70,7 @@ export const DraftingStrip: React.FC = () => {
   const midY = height / 2;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: PAPER }}>
+    <AbsoluteFill style={{ backgroundColor: GROUND }}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
           <pattern

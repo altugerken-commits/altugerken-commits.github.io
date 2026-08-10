@@ -61,33 +61,47 @@
       // products are grounded instead by a painted contact shadow underneath
       // them, which is both softer and cheaper (see lib/contact-shadow.ts).
 
-      // Hemisphere does the ambient work. Sky is the paper colour and ground is
-      // a half-step down, so the object picks up the room it is actually
-      // sitting in — light from above, a dimmer bounce from the page below.
-      // A flat AmbientLight would light every normal identically and flatten
-      // the form to a silhouette.
-      const sky = new THREE.HemisphereLight(0xffffff, 0xdedcd6, 2.6);
+      // THE RIG IS INVERTED FOR THE DARK GROUND.
+      //
+      // Against paper, ambient did almost all the work and the directionals
+      // existed only to keep the form from flattening. Against the void that
+      // is exactly wrong: a bright ambient lifts the product off the ground
+      // colour and it reads as a sticker. Here the room is UNLIT and the
+      // product is only what the sources find, which is what makes the light
+      // itself the subject.
+      //
+      // Warm key, cool rim — the same warm-core/cool-falloff rule the CSS
+      // --color-glow tokens follow, so the object and the page agree about
+      // what light is made of.
+
+      // Barely there. Enough that the shadow side is dark rather than absent;
+      // a true zero would clip whole faces to the background and the
+      // silhouette would break up.
+      const sky = new THREE.HemisphereLight(0xbcd0e8, 0x0a0a0c, 0.42);
       scene.add(sky);
 
-      // Key, high and slightly forward-left. This is the only source with
-      // enough authority to describe form, and it is what stops a matte object
-      // reading as a paper cut-out.
-      const key = new THREE.DirectionalLight(0xffffff, 1.35);
+      // Key. Strong, warm, and the only source with authority over form. Its
+      // POSITION IS SCROLL-DRIVEN — see scenes/studio.ts, which orbits it as
+      // the page moves so that scrolling is what moves the light.
+      const key = new THREE.DirectionalLight(0xfff0dc, 3.1);
       key.position.set(-2.2, 4.2, 3.4);
       key.castShadow = false;
       scene.add(key);
 
-      // Fill from the opposite side, roughly a third of key. Enough to open the
-      // shadow side without killing the gradient that key just built.
-      const fill = new THREE.DirectionalLight(0xfff6ee, 0.45);
+      // Fill, deliberately weak. On dark the shadow side is doing real work —
+      // it is what gives the object mass — so opening it up too far throws
+      // away the whole effect.
+      const fill = new THREE.DirectionalLight(0xdfe8f5, 0.22);
       fill.position.set(3.6, 0.4, 2.2);
       fill.castShadow = false;
       scene.add(fill);
 
-      // A cool touch from behind-above, to separate the product's top edge from
-      // the paper. On a light ground you cannot rim with brightness the way you
-      // would on black, so this is a very small hue shift rather than a glow.
-      const rim = new THREE.DirectionalLight(0xeef2f6, 0.35);
+      // Rim, from behind and above, and cool. This is the load-bearing light
+      // in a dark scene: it draws a bright edge along the product's contour
+      // and that edge is the only thing separating a dark object from a dark
+      // background. On paper this was a 0.35 hue nudge; here it is nearly as
+      // strong as the key.
+      const rim = new THREE.DirectionalLight(0x9fb4d0, 2.35);
       rim.position.set(0.8, 2.6, -3.8);
       rim.castShadow = false;
       scene.add(rim);

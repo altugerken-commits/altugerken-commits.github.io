@@ -7,8 +7,6 @@ import Base from '../layouts/Base.astro';
 const projects = [
   {
     id: 'nomad',
-    index: '01',
-    kind: 'Product',
     title: 'Nomad Brewer',
     lead:
       'A modular outdoor coffee and tea brewer. The body separates into stacked components that travel nested and assemble by feel, without a manual.',
@@ -26,8 +24,6 @@ const projects = [
   },
   {
     id: 'shifu',
-    index: '02',
-    kind: 'Composites',
     title: 'Shifu 26',
     lead:
       'Formula Student bodywork for Ozu Racing, developed inside the composites and aerodynamics sub-team.',
@@ -69,26 +65,31 @@ const toolkit = [
   </nav>
 
   {/* ---- hero ------------------------------------------------------------
-      Editorial Split: the type owns the left, and the right stays open paper.
-      The first product arrives one scroll down — a portfolio that opens on a
-      confident typographic statement and reveals the object as you move is
-      stronger than one that shows everything at once. */}
+      Cinematic Center. The name is the whole composition, sitting in an unlit
+      volume with two sources behind it and dust drifting through the beam.
+
+      Deliberately absent, per the hero bans: no eyebrow tag, no pill badge,
+      no floating stamp, no stats. Anything placed around the name competes
+      with it, and the point of this hero is that there is nothing to compete.
+
+      Two lines, never more. The container is the full shell width so the name
+      flows horizontally instead of stacking into a wall of wrapped text. */}
   <header class="hero">
-    <div class="shell hero__grid">
-      <div class="hero__type">
-        <p class="eyebrow" data-reveal>Industrial design &amp; engineering</p>
+    {/* The sources. Absolute rather than fixed, and promoted to their own
+        compositor layer, so scrolling translates a finished texture instead
+        of repainting a very large gradient every frame. */}
+    <div class="lume hero__lume hero__lume--key" aria-hidden="true"></div>
+    <div class="lume hero__lume hero__lume--rim" aria-hidden="true"></div>
 
-        <h1 class="t-display hero__name" data-reveal data-reveal-delay="1">
-          Altuğ<br />Erken
-        </h1>
+    <div class="shell hero__inner">
+      <h1 class="t-display hero__name rake lit">Altuğ Erken</h1>
 
-        <p class="t-lead hero__lead" data-reveal data-reveal-delay="2">
-          I work where form meets mechanism — modular outdoor equipment,
-          composite bodywork, and objects built to be understood without
-          instructions.
-        </p>
+      <p class="t-lead hero__lead" data-reveal data-reveal-delay="2">
+        Objects built to be understood without instructions.
+      </p>
 
-        <a class="cta" href="#work" data-reveal data-reveal-delay="3">
+      <div class="hero__actions" data-reveal data-reveal-delay="3">
+        <a class="cta" href="#work">
           <span>See the work</span>
           <span class="cta__pip" aria-hidden="true">
             <svg viewBox="0 0 16 16" focusable="false">
@@ -96,17 +97,15 @@ const toolkit = [
             </svg>
           </span>
         </a>
-      </div>
-
-      {/* Sits in the grid so the split is real at every width, and carries the
-          scroll cue rather than pinning it to the viewport floor. */}
-      <div class="hero__aside">
-        <p class="t-label hero__clock" data-clock>Istanbul</p>
-        <p class="t-label hero__cue" aria-hidden="true">
-          <span class="hero__cue-rule"></span>Scroll
-        </p>
+        <a class="cta cta--quiet" href="#contact">
+          <span>Get in touch</span>
+        </a>
       </div>
     </div>
+
+    <p class="t-label hero__cue" aria-hidden="true">
+      <span class="hero__cue-rule"></span>Scroll
+    </p>
   </header>
 
   {/* ---- work ------------------------------------------------------------ */}
@@ -124,22 +123,18 @@ const toolkit = [
                 zero-height anchor parks its product at scale 0. */}
             <div class="product" data-product={p.id} aria-hidden="true"></div>
 
+            {/* No "01 — Product" label. A numbered meta-label above a heading
+                is filler that says nothing the heading does not already say,
+                and the ordering is already visible from the page. The title
+                leads. */}
             <div class="project__body">
-              <p class="eyebrow" data-reveal>
-                {p.index} — {p.kind}
-              </p>
-
-              <h3 id={`${p.id}-title`} class="t-h1 project__title" data-reveal data-reveal-delay="1">
+              <h3 id={`${p.id}-title`} class="t-h1 project__title lit" data-reveal>
                 {p.title}
               </h3>
 
-              <p class="t-lead" data-reveal data-reveal-delay="2">{p.lead}</p>
+              <p class="t-lead" data-reveal data-reveal-delay="1">{p.lead}</p>
 
-              <div class="project__copy" data-reveal data-reveal-delay="3">
-                {p.body.map((t) => <p class="t-body">{t}</p>)}
-              </div>
-
-              <dl class="spec" data-reveal data-reveal-delay="4">
+              <dl class="spec" data-reveal data-reveal-delay="2">
                 {p.spec.map(([k, v]) => (
                   <div class="spec__row">
                     <dt class="t-label">{k}</dt>
@@ -148,7 +143,7 @@ const toolkit = [
                 ))}
               </dl>
 
-              <button class="cta cta--quiet" type="button" data-inspect={p.id} data-reveal data-reveal-delay="5">
+              <button class="cta cta--quiet" type="button" data-inspect={p.id} data-reveal data-reveal-delay="3">
                 <span>Inspect in 3D</span>
                 <span class="cta__pip" aria-hidden="true">
                   <svg viewBox="0 0 16 16" focusable="false">
@@ -170,38 +165,45 @@ const toolkit = [
       audit names as the most generic layout there is. */}
   <section id="about" class="band" aria-labelledby="about-heading">
     <div class="shell">
-      <p class="eyebrow" data-reveal>About</p>
-      <h2 id="about-heading" class="t-h1 about__heading" data-reveal data-reveal-delay="1">
+      {/* No "About" eyebrow. The heading is the section, and a label naming
+          what the heading already says is the definition of filler. */}
+      <h2 id="about-heading" class="t-h1 about__heading lit" data-reveal>
         Stripping away<br />the unnecessary.
       </h2>
 
       <div class="bento">
-        <div class="bezel bento__bio" data-reveal>
+        {/* The bio is the scrubbed block: script splits it into words and
+            scroll brings them up from dim to lit, so reading and scrolling are
+            the same gesture. The markup stays plain prose — the split happens
+            after parse, so the text is real text for a screen reader, for
+            selection, and with JS off. */}
+        <div class="bezel bento__bio spot" data-reveal>
           <div class="bezel__core bento__pad">
-            <p class="t-body">
-              I am Altuğ Erken, an industrial design and engineering student at
-              Özyeğin University. I operate at the intersection of aesthetic
-              form and mechanical function, crafting products that are both
-              visually striking and meticulously engineered.
-            </p>
-            <p class="t-body">
-              As a member of the composites and aerodynamics sub-team at Ozu
-              Racing, I specialize in the structural design and advanced
-              manufacturing of vehicle outer shells.
-            </p>
-            <p class="t-body">
-              Whether I am designing modular outdoor equipment or smart living
-              concepts, my philosophy is rooted in stripping away the
-              unnecessary. I gravitate towards clean geometries, monochrome
-              palettes, and &lsquo;dead-front&rsquo; interfaces, focusing on
-              revealing the pure essence and raw materiality of a product.
-            </p>
+            <div class="words" data-words>
+              <p class="t-body">
+                I am Altuğ Erken, an industrial design and engineering student at
+                Özyeğin University. I operate at the intersection of aesthetic
+                form and mechanical function, crafting products that are both
+                visually striking and meticulously engineered.
+              </p>
+              <p class="t-body">
+                As a member of the composites and aerodynamics sub-team at Ozu
+                Racing, I specialize in the structural design and advanced
+                manufacturing of vehicle outer shells.
+              </p>
+              <p class="t-body">
+                Whether I am designing modular outdoor equipment or smart living
+                concepts, my philosophy is rooted in stripping away the
+                unnecessary. I gravitate towards clean geometries, monochrome
+                palettes, and &lsquo;dead-front&rsquo; interfaces, focusing on
+                revealing the pure essence and raw materiality of a product.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div class="bezel bento__facts" data-reveal data-reveal-delay="1">
+        <div class="bezel bento__facts spot" data-reveal data-reveal-delay="1">
           <div class="bezel__core bento__pad">
-            <p class="t-label bento__label">Currently</p>
             <dl class="spec spec--tight">
               <div class="spec__row">
                 <dt class="t-label">Study</dt>
@@ -249,9 +251,8 @@ const toolkit = [
           </div>
         </div>
 
-        <div class="bezel bento__kit" data-reveal data-reveal-delay="2">
+        <div class="bezel bento__kit spot" data-reveal data-reveal-delay="2">
           <div class="bezel__core bento__pad">
-            <p class="t-label bento__label">Digital toolkit</p>
             <ul class="kit">
               {
                 toolkit.map(([name, role]) => (
@@ -270,9 +271,9 @@ const toolkit = [
 
   {/* ---- contact ---------------------------------------------------------- */}
   <section id="contact" class="band contact" aria-labelledby="contact-heading">
+    <div class="lume contact__lume" aria-hidden="true"></div>
     <div class="shell">
-      <p class="eyebrow" data-reveal>Contact</p>
-      <h2 id="contact-heading" class="t-display contact__heading" data-reveal data-reveal-delay="1">
+      <h2 id="contact-heading" class="t-display contact__heading lit" data-reveal>
         Let&rsquo;s build<br />something solid.
       </h2>
 
@@ -321,10 +322,7 @@ const toolkit = [
   <footer class="footer">
     <div class="shell footer__grid">
       <p class="t-label">© 2026 Altuğ Erken</p>
-      <p class="t-label footer__colophon">
-        Geist &amp; Geist Mono · Astro, Three.js · Models shown as authored, no
-        retouching
-      </p>
+      <p class="t-label">İstanbul</p>
     </div>
   </footer>
 
@@ -335,8 +333,9 @@ const toolkit = [
       ancestor has opted out. */}
   <div class="detail" data-detail hidden>
     <div class="detail__panel">
-      <p class="eyebrow" data-detail-index></p>
-      <h2 class="t-h2 detail__title" data-detail-title></h2>
+      {/* No index line. It read "01 — Nomad Brewer" directly above a heading
+          that says "Nomad Brewer", which is the same words twice. */}
+      <h2 class="t-h2 detail__title lit" data-detail-title></h2>
       <div class="detail__body" data-detail-body></div>
       <button class="cta cta--quiet detail__back" type="button" data-detail-back>
         <span class="cta__pip cta__pip--lead" aria-hidden="true">
@@ -347,10 +346,8 @@ const toolkit = [
         <span>Back to the page</span>
       </button>
     </div>
-    <p class="t-label detail__hint">Drag to rotate · scroll to zoom · Esc to exit</p>
+    <p class="t-label detail__hint">Drag to rotate · move the mouse to move the light · Esc to exit</p>
   </div>
-
-  <p class="t-label probe" data-probe hidden></p>
 </Base>
 
 <style>
@@ -408,7 +405,7 @@ const toolkit = [
   /* Which section you are in. Without this the nav answers "where can I go"
      but never "where am I". */
   .nav__list a[data-active] {
-    color: var(--color-surface);
+    color: var(--color-void);
     background: var(--color-ink);
   }
 
@@ -418,29 +415,79 @@ const toolkit = [
 
   /* ---- hero -------------------------------------------------------------- */
   .hero {
+    position: relative;
     min-height: 100dvh;
     display: grid;
-    align-items: center;
-    padding-block: clamp(7rem, 18vh, 12rem) clamp(4rem, 10vh, 7rem);
+    place-items: center;
+    padding-block: clamp(7rem, 18vh, 12rem) clamp(5rem, 12vh, 8rem);
+    overflow: hidden;
   }
-  .hero__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.34fr);
-    align-items: end;
-    gap: clamp(2rem, 6vw, 5rem);
-  }
-  .hero__type { display: grid; justify-items: start; gap: clamp(1.25rem, 3vh, 2rem); }
-  .hero__name { margin: 0; }
-  .hero__lead { margin: 0; max-width: 34ch; }
 
-  .hero__aside {
-    display: grid;
-    gap: 1.25rem;
-    justify-items: end;
-    text-align: right;
+  /* The two sources. Promoted to their own layer so scrolling the hero
+     translates a rendered texture rather than repainting a gradient the size
+     of the viewport on every frame. */
+  .hero__lume {
+    will-change: transform;
+    transform: translateZ(0);
   }
-  .hero__clock { font-variant-numeric: tabular-nums; }
+  .hero__lume--key {
+    top: -22vh;
+    left: 50%;
+    width: min(120vw, 95rem);
+    aspect-ratio: 1;
+    margin-left: min(-60vw, -47.5rem);
+    opacity: 0.85;
+  }
+  /* A second, tighter and cooler source low and to one side, so the volume has
+     two lights in it rather than one symmetrical wash. */
+  .hero__lume--rim {
+    bottom: -30vh;
+    right: -10vw;
+    width: min(70vw, 48rem);
+    aspect-ratio: 1;
+    opacity: 0.5;
+    background: radial-gradient(
+      circle at 50% 50%,
+      color-mix(in oklab, var(--color-glow-cool) 16%, transparent) 0%,
+      transparent 68%
+    );
+  }
+
+  .hero__inner {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: clamp(1.5rem, 4vh, 2.75rem);
+  }
+
+  /* Full shell width and centred. The name must flow horizontally and land on
+     one or two lines — a display heading that wraps to four is the single most
+     common way a hero stops looking designed. */
+  .hero__name {
+    margin: 0;
+    width: 100%;
+    max-width: 18ch;
+  }
+
+  .hero__lead {
+    margin: 0;
+    max-width: 34ch;
+    color: var(--color-ink-2);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
   .hero__cue {
+    position: absolute;
+    bottom: clamp(1.75rem, 5vh, 3rem);
+    left: 50%;
+    transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
     gap: 0.7em;
@@ -451,11 +498,6 @@ const toolkit = [
     height: 1px;
     background: currentColor;
     opacity: 0.5;
-  }
-
-  @media (max-width: 900px) {
-    .hero__grid { grid-template-columns: minmax(0, 1fr); }
-    .hero__aside { justify-items: start; text-align: left; }
   }
 
   /* ---- project ----------------------------------------------------------- */
@@ -491,21 +533,26 @@ const toolkit = [
     aspect-ratio: 4 / 5;
     min-height: 22rem;
   }
+  /* On the void a shadow pool is invisible — black under black. The product is
+     seated with LIGHT instead: a soft pool behind it, which reads as the beam
+     falling on the volume the object occupies and gives the silhouette
+     something to be a silhouette against. */
   .product::after {
     content: "";
     position: absolute;
     left: 50%;
-    bottom: 6%;
-    width: 58%;
-    height: 12%;
-    transform: translateX(-50%);
+    top: 50%;
+    width: 96%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) translateZ(0);
     border-radius: 50%;
     background: radial-gradient(
-      ellipse at center,
-      rgba(38, 34, 28, 0.17),
-      rgba(38, 34, 28, 0) 72%
+      circle at 50% 50%,
+      color-mix(in oklab, var(--color-glow) 13%, transparent) 0%,
+      color-mix(in oklab, var(--color-glow-cool) 6%, transparent) 40%,
+      transparent 68%
     );
-    filter: blur(16px);
+    will-change: transform;
   }
 
   @media (max-width: 900px) {
@@ -547,8 +594,13 @@ const toolkit = [
     gap: 0.85rem;
     margin-top: 0.5rem;
     padding: 0.55rem 0.55rem 0.55rem 1.35rem;
+    /* The primary action is the brightest object on the page — a lit surface
+       on an unlit ground, which is the direction stated in one component.
+       That means DARK text on it. When the palette inverted, background:ink
+       plus color:paper became near-white on near-white: contrast ratio 1.00,
+       a completely invisible button that no visual check here could catch. */
     background: var(--color-ink);
-    color: var(--color-paper);
+    color: var(--color-void);
     border: 0;
     border-radius: 999px;
     font-family: var(--font-mono);
@@ -597,7 +649,9 @@ const toolkit = [
     width: 1.85rem;
     height: 1.85rem;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--color-paper) 18%, transparent);
+    /* Tinted with the VOID, not the ink: the pip sits inside a near-white
+       button, so a light wash would be invisible against it. */
+    background: color-mix(in oklab, var(--color-void) 14%, transparent);
     /* 220ms, not 380. A hover response is a UI interaction and lives under the
        300ms budget; at 380 the arrow visibly lags the cursor arriving. */
     transition: transform var(--dur-menu) var(--ease-out);
@@ -619,7 +673,7 @@ const toolkit = [
   }
 
   /* ---- bento ------------------------------------------------------------- */
-  .about__heading { margin: 0.75rem 0 clamp(2.5rem, 6vh, 4rem); }
+  .about__heading { margin: 0 0 clamp(2.5rem, 6vh, 4rem); }
 
   .bento {
     display: grid;
@@ -652,8 +706,8 @@ const toolkit = [
     align-content: start;
     gap: 1.1em;
   }
-  .bento__label { margin-bottom: 0.4rem; }
-  .bento__bio .t-body { margin: 0; max-width: 46ch; }
+  .bento__bio .t-body { margin: 0 0 1.1em; max-width: 46ch; }
+  .bento__bio .t-body:last-child { margin-bottom: 0; }
 
   .kit { list-style: none; margin: 0; padding: 0; display: grid; }
   .kit__row {
@@ -679,7 +733,18 @@ const toolkit = [
   }
 
   /* ---- contact ----------------------------------------------------------- */
-  .contact__heading { margin: 0.75rem 0 clamp(2.5rem, 6vh, 4rem); }
+  .contact { position: relative; overflow: hidden; }
+  /* The page closes on the same light it opened on. */
+  .contact__lume {
+    top: 50%;
+    left: 50%;
+    width: min(110vw, 78rem);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) translateZ(0);
+    opacity: 0.55;
+    will-change: transform;
+  }
+  .contact__heading { margin: 0 0 clamp(2.5rem, 6vh, 4rem); position: relative; }
   .links { list-style: none; margin: 0; padding: 0; display: grid; }
   .links a {
     display: grid;
@@ -785,14 +850,6 @@ const toolkit = [
     .detail__hint { display: none; }
   }
 
-  .probe {
-    position: fixed;
-    left: var(--gutter);
-    bottom: 1rem;
-    pointer-events: none;
-    z-index: var(--z-chrome);
-  }
-
   /* ---- scroll reveal -----------------------------------------------------
      Authored only under .js, so with scripting off the content renders
      normally instead of staying at opacity 0 forever. A heavy fade-up with a
@@ -824,6 +881,7 @@ const toolkit = [
 
 <script>
   import { initStudio } from '../scenes/studio';
+  import { initMotes } from '../scenes/motes';
   import { initInspect } from '../scenes/inspect';
   import { onFrame } from '../lib/loop';
   import { detail, enterDetail, exitDetail, onDetailChange } from '../lib/detail';
@@ -951,27 +1009,57 @@ const toolkit = [
     });
   }
 
-  // ---- local time ------------------------------------------------------------
-  // The visitor's clock, not the server's — which is why it is written here and
-  // never rendered on the server. A greeting the server guessed would flash the
-  // wrong time of day before correcting itself.
-  const clockEl = document.querySelector<HTMLElement>('[data-clock]');
-  const writeClock = () => {
-    if (!clockEl) return;
-    const now = new Date();
-    const h = now.getHours();
-    const part = h < 5 ? 'Night' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
-    const hh = String(h).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    clockEl.textContent = `Good ${part} · ${hh}:${mm} local`;
-  };
-  writeClock();
-  setInterval(writeClock, 30_000);
+  // ---- scrubbed word reveal --------------------------------------------------
+  // The bio is brought up word by word as the block crosses the viewport, so
+  // reading and scrolling become the same gesture.
+  //
+  // Purpose: state indication — it makes scroll position legible as reading
+  // position. It earns its length because this is a marketing surface, not UI;
+  // the sub-300ms budget governs things the user is waiting on, and nothing is
+  // waiting here.
+  //
+  // Written directly to style.opacity per word rather than through a class or a
+  // parent CSS variable. Driving a child's value from a variable on the parent
+  // restyles every child on every frame, which with ~90 words is a recalc storm.
+  const wordHost = document.querySelector<HTMLElement>('[data-words]');
+  let wordSpans: HTMLElement[] = [];
+  if (wordHost && !reduced) {
+    for (const p of Array.from(wordHost.querySelectorAll('p'))) {
+      const words = (p.textContent ?? '').split(/\s+/).filter(Boolean);
+      p.replaceChildren(
+        ...words.flatMap((w, i) => {
+          const s = document.createElement('span');
+          s.textContent = w;
+          // A real space between spans, so the text still selects and reads as
+          // a sentence rather than asrunontext.
+          return i < words.length - 1 ? [s, document.createTextNode(' ')] : [s];
+        }),
+      );
+    }
+    wordSpans = Array.from(wordHost.querySelectorAll('span'));
+  }
+
+  // ---- cursor spotlight ------------------------------------------------------
+  // Cards light up under the pointer. Hover-gated at the CSS layer; the
+  // listener is attached only on a fine pointer so touch devices never pay for
+  // the work at all.
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    for (const card of document.querySelectorAll<HTMLElement>('.spot')) {
+      card.addEventListener(
+        'pointermove',
+        (e) => {
+          const r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+          card.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+        },
+        { passive: true },
+      );
+    }
+  }
 
   // ---- detail mode -----------------------------------------------------------
-  const COPY: Record<string, { index: string; title: string; body: string[] }> = {
+  const COPY: Record<string, { title: string; body: string[] }> = {
     nomad: {
-      index: '01 — Nomad Brewer',
       title: 'Nomad Brewer',
       body: [
         'The body separates into stacked components that travel nested and assemble by feel. Each joint is a twist-lock — a quarter turn seats and seals it.',
@@ -979,7 +1067,6 @@ const toolkit = [
       ],
     },
     shifu: {
-      index: '02 — Shifu 26',
       title: 'Shifu 26',
       body: [
         'Formula Student bodywork for Ozu Racing: carbon fibre skins over a steel spaceframe, developed in the composites and aerodynamics sub-team.',
@@ -989,14 +1076,12 @@ const toolkit = [
   };
 
   const detailEl = document.querySelector<HTMLElement>('[data-detail]');
-  const detailIndex = document.querySelector<HTMLElement>('[data-detail-index]');
   const detailTitle = document.querySelector<HTMLElement>('[data-detail-title]');
   const detailBody = document.querySelector<HTMLElement>('[data-detail-body]');
 
   const fillDetail = (id: string) => {
     const c = COPY[id];
-    if (!c || !detailIndex || !detailTitle || !detailBody) return;
-    detailIndex.textContent = c.index;
+    if (!c || !detailTitle || !detailBody) return;
     detailTitle.textContent = c.title;
     detailBody.replaceChildren(
       ...c.body.map((t) => {
@@ -1044,8 +1129,6 @@ const toolkit = [
   });
 
   // ---- boot ------------------------------------------------------------------
-  const probe = document.querySelector<HTMLElement>('[data-probe]');
-
   const boot = async () => {
     const api = (window as any).__scene;
     if (!api || (window as any).__studio) return;
@@ -1053,6 +1136,11 @@ const toolkit = [
     try {
       const studio = await initStudio(api);
       (window as any).__studio = studio;
+
+      // Dust in the beam. Started before inspect so it is already drifting by
+      // the time anything else can take the camera.
+      const motes = initMotes(api);
+      (window as any).__motes = motes;
 
       const inspect = await initInspect(api, studio);
       (window as any).__inspect = inspect;
@@ -1089,20 +1177,34 @@ const toolkit = [
         if (domLayer) {
           domLayer.style.pointerEvents = detail.progress > 0.02 ? 'none' : '';
         }
-      });
 
-      if (probe) {
-        const n = studio.info.nomad;
-        const s = studio.info.shifu;
-        probe.textContent =
-          `studio · nomad ${n.meshes}m/${n.triangles.toLocaleString()}t · ` +
-          `shifu ${s.meshes}m/${s.triangles.toLocaleString()}t`;
-      }
+        // ---- the words --------------------------------------------------
+        // Driven from the frame loop rather than from a scroll listener: the
+        // clock already runs once per frame and has the scroll measured, so
+        // this costs one rect read instead of a listener that forces a reflow
+        // on every scroll event.
+        if (wordSpans.length && wordHost) {
+          const r = wordHost.getBoundingClientRect();
+          const vh = window.innerHeight || 1;
+          // 0 as the block's top reaches three-quarters down the viewport, 1
+          // once its bottom has climbed near the top — so the text finishes
+          // lighting well before it leaves rather than at the last pixel.
+          const start = vh * 0.78;
+          const end = -r.height + vh * 0.32;
+          const k = Math.max(0, Math.min(1, (start - r.top) / Math.max(1, start - end)));
+
+          const n = wordSpans.length;
+          // The front runs from before the first word to past the last, so
+          // both ends fully resolve. A soft trailing edge over ~8 words keeps
+          // it reading as light arriving rather than as a hard wipe.
+          const head = k * (n + 12) - 6;
+          for (let i = 0; i < n; i++) {
+            const o = Math.max(0.18, Math.min(1, 0.18 + (head - i) / 8));
+            wordSpans[i].style.opacity = o.toFixed(3);
+          }
+        }
+      });
     } catch (err) {
-      if (probe) {
-        probe.hidden = false;
-        probe.textContent = 'studio · failed — see console';
-      }
       console.error('[studio]', err);
     }
   };
