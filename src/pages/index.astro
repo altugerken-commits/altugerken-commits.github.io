@@ -366,9 +366,14 @@ const toolkit = [
       color var(--dur-menu) var(--ease-out),
       background-color var(--dur-menu) var(--ease-out);
   }
-  .nav__list a:hover {
-    color: var(--color-ink);
-    background: color-mix(in oklab, var(--color-sunken) 80%, transparent);
+  /* Every hover state on this page is gated. On a touch device :hover latches
+     after a tap and stays latched until you tap elsewhere, so an ungated hover
+     leaves the nav pill lit and the CTA arrow permanently displaced. */
+  @media (hover: hover) and (pointer: fine) {
+    .nav__list a:hover {
+      color: var(--color-ink);
+      background: color-mix(in oklab, var(--color-sunken) 80%, transparent);
+    }
   }
   /* Which section you are in. Without this the nav answers "where can I go"
      but never "where am I". */
@@ -506,6 +511,7 @@ const toolkit = [
      the button itself presses down, which is what gives it internal tension
      instead of a flat colour swap. */
   .cta {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.85rem;
@@ -523,13 +529,25 @@ const toolkit = [
     text-decoration: none;
     cursor: pointer;
     box-shadow: var(--shadow-2);
-    transition:
-      transform var(--dur-press) var(--ease-out),
-      box-shadow var(--dur-panel) var(--ease-out),
-      background-color var(--dur-panel) var(--ease-out);
+    /* transform only. box-shadow was in here, and animating it repaints the
+       button and its shadow region on every frame of the hover — the deeper
+       shadow is now a pseudo-element crossfaded on opacity instead, which the
+       compositor can do without touching paint. */
+    transition: transform var(--dur-press) var(--ease-out);
   }
-  .cta:hover { box-shadow: var(--shadow-3); }
-  /* Feedback on the press itself, not on release. */
+  /* The lifted shadow, pre-rendered and revealed. */
+  .cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--shadow-3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-menu) var(--ease-out);
+  }
+  /* Feedback on the press itself, not on release. Ungated on purpose —
+     :active is the one interaction state touch genuinely has. */
   .cta:active { transform: scale(0.975); }
 
   .cta--quiet {
@@ -537,7 +555,11 @@ const toolkit = [
     color: var(--color-ink);
     box-shadow: inset 0 0 0 1px var(--color-hairline), var(--shadow-1);
   }
-  .cta--quiet:hover { box-shadow: inset 0 0 0 1px var(--color-ink-4), var(--shadow-2); }
+  .cta--quiet::after { box-shadow: inset 0 0 0 1px var(--color-ink-3), var(--shadow-2); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .cta:hover::after { opacity: 1; }
+  }
 
   .cta__pip {
     display: grid;
@@ -546,7 +568,9 @@ const toolkit = [
     height: 1.85rem;
     border-radius: 999px;
     background: color-mix(in oklab, var(--color-paper) 18%, transparent);
-    transition: transform var(--dur-panel) var(--ease-out);
+    /* 220ms, not 380. A hover response is a UI interaction and lives under the
+       300ms budget; at 380 the arrow visibly lags the cursor arriving. */
+    transition: transform var(--dur-menu) var(--ease-out);
   }
   .cta--quiet .cta__pip { background: var(--color-sunken); }
   .cta__pip--lead { order: -1; }
@@ -559,8 +583,10 @@ const toolkit = [
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .cta:hover .cta__pip { transform: translate(2px, -2px); }
-  .cta:hover .cta__pip--lead { transform: translate(-2px, 0); }
+  @media (hover: hover) and (pointer: fine) {
+    .cta:hover .cta__pip { transform: translate(2px, -2px); }
+    .cta:hover .cta__pip--lead { transform: translate(-2px, 0); }
+  }
 
   /* ---- bento ------------------------------------------------------------- */
   .about__heading { margin: 0.75rem 0 clamp(2.5rem, 6vh, 4rem); }
@@ -615,12 +641,10 @@ const toolkit = [
     border-top: 1px solid var(--color-hairline);
     text-decoration: none;
     color: var(--color-ink);
-    transition: color var(--dur-panel) var(--ease-out);
+    transition: color var(--dur-menu) var(--ease-out);
   }
   .links li:last-child a { border-bottom: 1px solid var(--color-hairline); }
-  .links a:hover { color: var(--color-oxide); }
-  .links__value { transition: transform var(--dur-panel) var(--ease-out); }
-  .links a:hover .links__value { transform: translateX(6px); }
+  .links__value { transition: transform var(--dur-menu) var(--ease-out); }
   .links__pip {
     display: grid;
     place-items: center;
@@ -629,8 +653,8 @@ const toolkit = [
     border-radius: 999px;
     background: var(--color-sunken);
     transition:
-      transform var(--dur-panel) var(--ease-out),
-      background-color var(--dur-panel) var(--ease-out);
+      transform var(--dur-menu) var(--ease-out),
+      background-color var(--dur-menu) var(--ease-out);
   }
   .links__pip svg {
     width: 0.85rem;
@@ -641,9 +665,14 @@ const toolkit = [
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .links a:hover .links__pip {
-    transform: translate(2px, -2px);
-    background: var(--color-oxide-wash);
+
+  @media (hover: hover) and (pointer: fine) {
+    .links a:hover { color: var(--color-oxide); }
+    .links a:hover .links__value { transform: translateX(6px); }
+    .links a:hover .links__pip {
+      transform: translate(2px, -2px);
+      background: var(--color-oxide-wash);
+    }
   }
 
   @media (max-width: 640px) {
@@ -762,12 +791,36 @@ const toolkit = [
   // makes a long page feel restless.
   const revealables = document.querySelectorAll<HTMLElement>('[data-reveal]');
   if (revealables.length) {
+    // Once the entrance has played, the attribute is REMOVED, not just marked
+    // done. This is load-bearing, not tidiness: the reveal rule declares an
+    // 800ms transition on transform, and several revealed elements are buttons
+    // that declare their own 140ms transform transition for press feedback.
+    // Both rules have the same specificity, so the reveal wins on source order
+    // and every press on the hero CTA animated over 800ms — a button that
+    // takes most of a second to acknowledge a click.
+    //
+    // Dropping the attribute after the entrance retires the reveal rule
+    // entirely and hands each element back its own timing.
+    const retire = (el: HTMLElement) => {
+      const cs = getComputedStyle(el);
+      const secs = (v: string) =>
+        Math.max(...v.split(',').map((s) => parseFloat(s) * (s.includes('ms') ? 1 : 1000)), 0);
+      // Wait out the longest of duration + delay, plus a frame of slack.
+      const wait = secs(cs.transitionDuration) + secs(cs.transitionDelay) + 120;
+      setTimeout(() => {
+        el.removeAttribute('data-reveal');
+        el.classList.remove('is-in');
+      }, wait);
+    };
+
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (!e.isIntersecting) continue;
-          e.target.classList.add('is-in');
-          io.unobserve(e.target);
+          const el = e.target as HTMLElement;
+          el.classList.add('is-in');
+          io.unobserve(el);
+          retire(el);
         }
       },
       // Fire a little before the element reaches the fold so the motion has
