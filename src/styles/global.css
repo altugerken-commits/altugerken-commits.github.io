@@ -159,8 +159,40 @@
     --gutter: clamp(1.25rem, 5vw, 5.5rem);
   }
 
+  /* ---- the drafting sheet ------------------------------------------------
+     The whole site sits on a technical drawing: a fine grid with a heavier
+     line every fifth cell, in white on the void, the way a drafting sheet is
+     ruled.
+
+     Painted as a background-image on <html> rather than as an overlay element.
+     That puts it behind everything with no z-index to manage, and — because
+     the stage canvas is created with alpha:true and never clears to a colour —
+     the products end up floating ON the sheet rather than over a separate
+     layer of it.
+
+     background-attachment: fixed so the grid stays registered to the viewport
+     while the page scrolls. A grid that scrolls with the content reads as
+     wallpaper; one that stays put reads as the surface the page is drawn on.
+
+     The two alphas below are the dial. They are deliberately low: at anything
+     approaching a literal 20% a full-page grid stops being a texture and
+     starts competing with the work. Raise --sheet-major first — the heavier
+     lines carry the read, and the fine ones are what turn busy. */
+  :root {
+    --sheet-fine:  color-mix(in oklab, var(--color-ink) 2.2%, transparent);
+    --sheet-major: color-mix(in oklab, var(--color-ink) 5.5%, transparent);
+    --sheet-cell: 28px;
+    --sheet-block: 140px;
+  }
+
   html {
-    background: var(--color-void);
+    background-color: var(--color-void);
+    background-image:
+      repeating-linear-gradient(to right,  var(--sheet-major) 0 1px, transparent 1px var(--sheet-block)),
+      repeating-linear-gradient(to bottom, var(--sheet-major) 0 1px, transparent 1px var(--sheet-block)),
+      repeating-linear-gradient(to right,  var(--sheet-fine)  0 1px, transparent 1px var(--sheet-cell)),
+      repeating-linear-gradient(to bottom, var(--sheet-fine)  0 1px, transparent 1px var(--sheet-cell));
+    background-attachment: fixed;
     color: var(--color-ink-2);
     -webkit-text-size-adjust: 100%;
     /* NO scroll-behavior: smooth. Lenis owns smoothing, and the CSS property

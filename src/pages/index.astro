@@ -4,7 +4,40 @@ import Base from '../layouts/Base.astro';
 // Copy lives here rather than in a content collection: two projects is not a
 // collection, it is a page. The moment there is a third with its own route,
 // this moves to src/content and the loop below stays identical.
+// Shifu leads. It is the only piece of work here that was built, raced and
+// photographed rather than rendered, so it carries the most weight — and the
+// staged 3D projects run before the image-only ones because a model you can
+// pick up and turn is a stronger opening than a photograph.
+//
+// `shots` is optional on a staged project. When present the cluster renders
+// FULL WIDTH beneath the split, so the 3D object keeps the hero position and
+// the photography documents it underneath rather than competing for the slot.
 const projects = [
+  {
+    id: 'shifu',
+    title: 'Shifu 26',
+    lead:
+      'Formula Student bodywork for Ozu Racing, developed inside the chassis and ergonomics sub-team.',
+    body: [
+      'Carbon fibre skins over a steel spaceframe, with enamel detailing held to the minimum the regulations allow.',
+      'The model here is the full assembly: 1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without altering a single material definition.',
+    ],
+    spec: [
+      ['Team', 'Ozu Racing'],
+      ['Sub-team', 'Chassis & Ergonomics'],
+      ['Scope', 'Carbon bodywork, steel chassis'],
+      ['Assembly', '1,498 bodies, 3 materials'],
+    ],
+    side: 'left' as const,
+    shots: [
+      {
+        src: 'shifu-team',
+        w: 1600,
+        h: 1067,
+        alt: 'The Ozu Racing team with car 07 on the start line at the Red Bull Ring.',
+      },
+    ],
+  },
   {
     id: 'nomad',
     title: 'Nomad Brewer',
@@ -20,24 +53,8 @@ const projects = [
       ['Materials', 'Matte ceramic, frosted glass'],
       ['Status', 'Concept, 2025'],
     ],
-    side: 'left' as const,
-  },
-  {
-    id: 'shifu',
-    title: 'Shifu 26',
-    lead:
-      'Formula Student bodywork for Ozu Racing, developed inside the composites and aerodynamics sub-team.',
-    body: [
-      'Carbon fibre skins over a steel spaceframe, with enamel detailing held to the minimum the regulations allow.',
-      'The model here is the full assembly: 1,498 CAD bodies consolidated by material into carbon, steel and enamel, then decimated for the web without altering a single material definition.',
-    ],
-    spec: [
-      ['Team', 'Ozu Racing'],
-      ['Sub-team', 'Composites & aerodynamics'],
-      ['Scope', 'Carbon bodywork, steel chassis'],
-      ['Assembly', '1,498 bodies, 3 materials'],
-    ],
     side: 'right' as const,
+    shots: [] as { src: string; w: number; h: number; alt: string }[],
   },
 ];
 
@@ -50,6 +67,25 @@ const projects = [
 // with the rest beneath it, 'row' lays them out equally. Portrait photography
 // needs 'row'; a single tall lead image would swallow the section.
 const imageProjects = [
+  {
+    id: 'vitra',
+    title: 'Vitra V-Motion',
+    side: 'left' as const,
+    layout: 'lead' as const,
+    lead:
+      'A smart toilet concept for Vitra built around touchless hygiene: the whole sequence runs without a hand ever meeting a surface.',
+    spec: [
+      ['Brief', 'Vitra, self-initiated'],
+      ['Principle', 'Touchless hygiene'],
+      ['Control', 'Wall panel, no contact'],
+      ['Status', 'Concept, 2026'],
+    ],
+    shots: [
+      { src: 'vitra-hero', w: 1600, h: 892, alt: 'The V-Motion wall-hung pan lit from beneath, with its touchless wall panel above.' },
+      { src: 'vitra-room', w: 1400, h: 788, alt: 'The unit in a dark stone bathroom, underglow washing the floor.' },
+      { src: 'vitra-top',  w: 1196, h: 896, alt: 'Overhead view with the lid raised, showing the open bowl and rim.' },
+    ],
+  },
   {
     id: 'caki',
     title: 'Victorinox Pocketknife',
@@ -87,7 +123,6 @@ const imageProjects = [
       { src: 'kulp-hero',  w: 1600, h: 900, alt: 'The pull rendered against a dark ground, its brushed faces catching a single source.' },
       { src: 'kulp-room',  w: 1600, h: 900, alt: 'The pull installed on glass wardrobe doors in a lit dressing room.' },
       { src: 'kulp-close', w: 1200, h: 675, alt: 'Close view of the pull against the glass door and its reflection.' },
-      { src: 'kulp-mount', w: 1200, h: 675, alt: 'The through-fixing detail where the pull clamps the glass.' },
     ],
   },
   {
@@ -225,6 +260,31 @@ const toolkit = [
               </button>
             </div>
           </div>
+
+          {/* Photography, full width beneath the split. A staged project keeps
+              the 3D object in the hero slot and the photographs document it
+              underneath, rather than the two competing for the same half. */}
+          {p.shots.length > 0 && (
+            <div class="shell project__gallery">
+              <div class:list={['shots', p.shots.length > 1 ? 'shots--lead' : 'shots--solo']}>
+                {p.shots.map((shot, i) => (
+                  <figure class="shot" data-reveal data-reveal-delay={String(Math.min(i + 1, 5))}>
+                    <picture>
+                      <source srcset={`/media/work/${shot.src}.avif`} type="image/avif" />
+                      <img
+                        src={`/media/work/${shot.src}.webp`}
+                        width={shot.w}
+                        height={shot.h}
+                        alt={shot.alt}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </picture>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
       ))
     }
@@ -305,22 +365,21 @@ const toolkit = [
           <div class="bezel__core bento__pad">
             <div class="words" data-words>
               <p class="t-body">
-                I am Altuğ Erken, an industrial design and engineering student at
-                Özyeğin University. I operate at the intersection of aesthetic
-                form and mechanical function, crafting products that are both
-                visually striking and meticulously engineered.
-              </p>
-              <p class="t-body">
-                As a member of the composites and aerodynamics sub-team at Ozu
-                Racing, I specialize in the structural design and advanced
-                manufacturing of vehicle outer shells.
+                I am Altuğ Erken, an industrial design student at Özyeğin
+                University with a keen interest in engineering. I strive to
+                operate at the intersection of aesthetic form and mechanical
+                function, creating products that are both visually striking and
+                meticulously engineered. While continually developing my skills
+                in my design studies, I also serve as a member of the composites
+                and aerodynamics sub-team at Ozu Racing, specializing in the
+                structural design and advanced manufacturing of vehicle outer
+                shells.
               </p>
               <p class="t-body">
                 Whether I am designing modular outdoor equipment or smart living
-                concepts, my philosophy is rooted in stripping away the
-                unnecessary. I gravitate towards clean geometries, monochrome
-                palettes, and &lsquo;dead-front&rsquo; interfaces, focusing on
-                revealing the pure essence and raw materiality of a product.
+                concepts, my design philosophy is rooted in stripping away the
+                unnecessary. I focus on revealing the pure essence and raw
+                materiality of a product.
               </p>
             </div>
           </div>
@@ -342,36 +401,6 @@ const toolkit = [
                 <dd class="t-spec">İstanbul, Türkiye</dd>
               </div>
             </dl>
-          </div>
-        </div>
-
-        {/* Pre-rendered in Remotion — see remotion/DraftingStrip.tsx. This is
-            the one asset on the site that is a fixed timeline rather than a
-            response to input, which is exactly the case a frame-indexed
-            renderer is for. It loops seamlessly: the grid travels exactly one
-            tile over the duration and every annotation starts and ends at
-            opacity 0, so the last frame is indistinguishable from the first.
-
-            Decorative, so aria-hidden. preload="none" and no autoplay
-            attribute: playback is started from script only when the card is on
-            screen AND motion is welcome, and paused again when it leaves. An
-            autoplaying loop costs battery for the whole visit otherwise. */}
-        <div class="bezel bento__process" data-reveal data-reveal-delay="3">
-          <div class="bezel__core bento__strip">
-            <video
-              class="strip"
-              data-strip
-              poster="/media/drafting-strip.png"
-              muted
-              loop
-              playsinline
-              preload="none"
-              aria-hidden="true"
-              tabindex="-1"
-            >
-              <source src="/media/drafting-strip.webm" type="video/webm" />
-              <source src="/media/drafting-strip.mp4" type="video/mp4" />
-            </video>
           </div>
         </div>
 
@@ -712,6 +741,14 @@ const toolkit = [
     grid-auto-flow: dense;
   }
   .shots--row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* One photograph gets the full width rather than half of a two-column grid
+     with a hole beside it. */
+  .shots--solo { grid-template-columns: minmax(0, 1fr); }
+
+  /* The gallery under a staged project. Its top margin is the only thing
+     separating it from the split above, so it is generous — without it the
+     photography reads as part of the spec list rather than as its own band. */
+  .project__gallery { margin-top: clamp(3rem, 8vh, 6rem); }
   .shots--lead > .shot:first-child { grid-column: 1 / -1; }
 
   /* A recessed plate. On the void a picture needs an edge or it floats as a
@@ -814,6 +851,12 @@ const toolkit = [
      :active is the one interaction state touch genuinely has. */
   .cta:active { transform: scale(0.975); }
 
+  /* A quiet CTA has no trailing pip, so the asymmetric padding the pip version
+     needs (1.35rem leading, 0.55rem trailing to sit flush against the well)
+     left its label visibly off-centre — which is what "Get in touch" was doing
+     in the hero. Even padding whenever the button has no pip. */
+  .cta:not(:has(.cta__pip)) { padding-inline: 1.35rem; }
+
   .cta--quiet {
     background: var(--color-surface);
     color: var(--color-ink);
@@ -865,22 +908,6 @@ const toolkit = [
   .bento__bio     { grid-column: span 7; grid-row: span 2; }
   .bento__facts   { grid-column: span 5; }
   .bento__kit     { grid-column: span 5; }
-  .bento__process { grid-column: span 12; }
-
-  /* Flush — the strip is the card's whole content, so the inner plate carries
-     no padding and clips the video to its own radius instead. */
-  .bento__strip {
-    overflow: hidden;
-    line-height: 0;
-  }
-  .strip {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 1;
-    object-fit: cover;
-  }
-
   .bento__pad {
     padding: clamp(1.5rem, 3vw, 2.5rem);
     height: 100%;
@@ -907,11 +934,7 @@ const toolkit = [
   @media (max-width: 900px) {
     .bento__bio,
     .bento__facts,
-    .bento__kit,
-    .bento__process { grid-column: span 12; grid-row: auto; }
-    /* Taller crop on a phone: at full width the 4:1 strip is only ~85px and
-       the annotations become unreadable. */
-    .strip { aspect-ratio: 5 / 2; }
+    .bento__kit { grid-column: span 12; grid-row: auto; }
   }
 
   /* ---- contact ----------------------------------------------------------- */
@@ -1126,33 +1149,6 @@ const toolkit = [
       { rootMargin: '0px 0px -12% 0px', threshold: 0.1 },
     );
     for (const el of revealables) io.observe(el);
-  }
-
-  // ---- the drafting strip ----------------------------------------------------
-  // Decode only while it is on screen, and never at all under reduced motion.
-  // A looping <video autoplay> keeps a decoder alive for the whole visit even
-  // when it is three sections above the fold; under reduced motion the poster
-  // frame is the correct presentation, and it is already the element's poster
-  // so no fallback markup is needed.
-  const strip = document.querySelector<HTMLVideoElement>('[data-strip]');
-  if (strip && !reduced) {
-    const stripIO = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            // play() rejects if the tab has never been interacted with on some
-            // policies. It is muted so autoplay is normally permitted, but the
-            // rejection must still be swallowed or it surfaces as an unhandled
-            // promise rejection in the console.
-            strip.play().catch(() => {});
-          } else {
-            strip.pause();
-          }
-        }
-      },
-      { threshold: 0.15 },
-    );
-    stripIO.observe(strip);
   }
 
   // ---- nav: where am I -------------------------------------------------------
