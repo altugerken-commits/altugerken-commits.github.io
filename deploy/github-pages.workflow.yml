@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # So a failed run can be re-tried, and the site can be rebuilt without a
+  # commit — useful because the Astro Fonts API fetches Geist at BUILD time, so
+  # a transient Google Fonts failure is a build failure, not a runtime one.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. In-progress runs are cancelled rather than
+# queued: only the newest commit is worth publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # package.json requires >=22.12.0.
+          node-version: 22
+          cache: npm
+
+      # ci, not install: it installs exactly what package-lock.json pins and
+      # fails loudly if the lockfile and manifest disagree, instead of silently
+      # resolving a different tree than the one built and verified locally.
+      - run: npm ci
+
+      # Typecheck before build. astro build does not typecheck, so without this
+      # a type error ships instead of failing the pipeline.
+      - run: npm run check
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
