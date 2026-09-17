@@ -14,7 +14,7 @@
 // lineage, and keeping every past build would grow the repo without ever being
 // read.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, rmSync } from 'node:fs';
+import { writeFileSync, rmSync, readFileSync } from 'node:fs';
 
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { stdio: 'inherit', shell: false, ...opts });
@@ -51,5 +51,11 @@ git('add', '-A');
 git('commit', '-q', '-m', `deploy: build of ${sha}`);
 git('push', '-qf', url, 'gh-pages');
 
-console.log('\ndone -> https://altugerken-commits.github.io/');
+// Read the address back out of what was just built rather than hardcoding
+// it. astro.config.mjs `site` is the single source of truth for the live
+// URL, and a second copy here is one more thing to forget on a domain change.
+const built = readFileSync('dist/index.html', 'utf8');
+const live = built.match(/<link rel="canonical" href="([^"]+)"/)?.[1] ?? '(unknown)';
+console.log('');
+console.log(`done -> ${live}`);
 console.log('Pages rebuilds within about a minute.');
