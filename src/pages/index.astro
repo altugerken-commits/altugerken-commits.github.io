@@ -30,12 +30,8 @@ const projects = [
     ],
     side: 'left' as const,
     shots: [
-      {
-        src: 'shifu-team',
-        w: 1600,
-        h: 1067,
-        alt: 'The Ozu Racing team with car 07 on the start line at the Red Bull Ring.',
-      },
+      { src: 'shifu-flags', w: 1400, h: 934,  alt: 'The Ozu Racing team behind car 07 on the start line at the Red Bull Ring, holding the team, university and Turkish flags.' },
+      { src: 'shifu-pit',   w: 900,  h: 1351, alt: 'The car in the paddock during scrutineering, the team working on it with the red panda mascot sitting on the parts trolley.' },
     ],
   },
   {
@@ -110,7 +106,10 @@ const imageProjects = [
     id: 'kulp',
     title: 'Poliform Pull',
     side: 'right' as const,
-    layout: 'lead' as const,
+    // Four shots: a full-width lead and THREE beneath it. With the plain 'lead'
+    // two-column cluster the fourth would sit alone on its own row with an
+    // empty cell beside it.
+    layout: 'lead3' as const,
     lead:
       'A door pull for Poliform in brushed aluminium, detailed to through-fix to frameless glass wardrobe doors.',
     spec: [
@@ -123,6 +122,7 @@ const imageProjects = [
       { src: 'kulp-hero',  w: 1600, h: 900, alt: 'The pull rendered against a dark ground, its brushed faces catching a single source.' },
       { src: 'kulp-room',  w: 1600, h: 900, alt: 'The pull installed on glass wardrobe doors in a lit dressing room.' },
       { src: 'kulp-close', w: 1200, h: 675, alt: 'Close view of the pull against the glass door and its reflection.' },
+      { src: 'kulp-print', w: 900, h: 1600, alt: 'The 3D-printed prototype laid out with its through-fixing hardware: square nut, socket-head bolt, two washers and the spacer.' },
     ],
   },
   {
@@ -189,10 +189,6 @@ const toolkit = [
 
     <div class="shell hero__inner">
       <h1 class="t-display hero__name rake">Altuğ Erken</h1>
-
-      <p class="t-lead hero__lead" data-reveal data-reveal-delay="2">
-        Objects built to be understood without instructions.
-      </p>
 
       <div class="hero__actions" data-reveal data-reveal-delay="3">
         <a class="cta" href="#work">
@@ -629,11 +625,8 @@ const toolkit = [
     max-width: 18ch;
   }
 
-  .hero__lead {
-    margin: 0;
-    max-width: 34ch;
-    color: var(--color-ink-2);
-  }
+  /* .hero__lead was removed with the line it styled. The hero is now the name
+     and the two actions, nothing between them. */
 
   .hero__actions {
     display: flex;
@@ -739,16 +732,45 @@ const toolkit = [
     gap: clamp(0.5rem, 1vw, 0.85rem);
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-flow: dense;
+    /* Grid items stretch to their row height by default, which on a row of
+       mixed aspect ratios leaves the shorter frames padded out with the plate
+       colour beneath the image — a dark band that reads as a broken crop.
+       Measured before this line: a 307x173 landscape was rendering in a
+       307x230 box next to a 4:3 frame. Start-aligned, every frame is exactly
+       as tall as its own picture. */
+    align-items: start;
   }
   .shots--row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* One photograph gets the full width rather than half of a two-column grid
      with a hole beside it. */
   .shots--solo { grid-template-columns: minmax(0, 1fr); }
 
+  /* A lead plus three. Three columns so the row beneath the cover image fills
+     completely — with two, a fourth shot sits alone next to an empty cell. */
+  .shots--lead3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shots--lead3 > .shot:first-child { grid-column: 1 / -1; }
+
   /* The gallery under a staged project. Its top margin is the only thing
      separating it from the split above, so it is generous — without it the
      photography reads as part of the spec list rather than as its own band. */
   .project__gallery { margin-top: clamp(3rem, 8vh, 6rem); }
+
+  /* Documentation, not hero imagery — so these sit noticeably smaller than the
+     image-only projects' clusters, and they are sized by HEIGHT rather than by
+     column. Shifu's two frames are one landscape and one portrait; matched to a
+     common height they read as contact prints laid side by side, where matching
+     their WIDTH would have made the portrait tower over the landscape. */
+  .project__gallery .shots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .project__gallery .shot img {
+    height: clamp(13rem, 30vh, 23rem);
+    width: auto;
+    max-width: 100%;
+  }
   .shots--lead > .shot:first-child { grid-column: 1 / -1; }
 
   /* A recessed plate. On the void a picture needs an edge or it floats as a
