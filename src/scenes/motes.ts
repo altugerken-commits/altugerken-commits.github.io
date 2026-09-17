@@ -26,7 +26,10 @@
 import { onFrame } from '../lib/loop';
 import { detail } from '../lib/detail';
 
-const COUNT = 420;
+// Halved on touch. The motes are additive, so every one of them is overdraw on
+// top of whatever is already in the framebuffer, and fill rate is exactly what
+// a phone has least of.
+const COUNT = matchMedia('(pointer: coarse)').matches ? 210 : 420;
 /** The box the motes occupy, in world units, centred on the origin. */
 const SPAN = { x: 17, y: 11, z: 9 };
 
@@ -115,11 +118,14 @@ export function initMotes(api: any) {
       varying float vAlpha;
 
       void main() {
-        // Round, soft-edged point. Discarding outside the disc keeps the
-        // square sprite from showing at larger sizes.
+        // Round, soft-edged point. NO discard: on the tile-based GPUs every
+        // phone uses, a discard disables early-Z for the whole tile and forces
+        // a slower fragment path — and with additive blending it buys nothing,
+        // because a fragment at alpha 0 already contributes nothing. The
+        // smoothstep reaches 0 at the disc edge, so the sprite corners are
+        // transparent rather than cut away.
         vec2 d = gl_PointCoord - 0.5;
         float r = length(d);
-        if (r > 0.5) discard;
         float core = 1.0 - smoothstep(0.0, 0.5, r);
 
         // Warm where the light hits, cool where it does not — the same

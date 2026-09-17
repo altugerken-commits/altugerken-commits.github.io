@@ -1375,6 +1375,19 @@ const toolkit = [
       const domLayer = document.querySelector<HTMLElement>('main.layer');
 
       onFrame(() => {
+        // READ FIRST, THEN WRITE. Every DOM read in this callback happens
+        // before every DOM write, and that ordering is the whole point.
+        //
+        // It used to write the chrome opacities and then read the word block's
+        // rect, which forces the browser to flush style and layout mid-frame to
+        // answer the read — a synchronous reflow on every single frame. Because
+        // one clock drives Lenis and the renderer together, that reflow lands
+        // directly on the scroll interpolation, which is what made scrolling
+        // stutter on a phone.
+        const wordRect = wordSpans.length && wordHost ? wordHost.getBoundingClientRect() : null;
+        const vh = window.innerHeight || 1;
+
+        // ---- writes -------------------------------------------------------
         // 1 on the page, 0 once inspection has fully opened. Squared so the
         // page is out of the way early rather than lingering under the dolly.
         const fade = Math.pow(1 - detail.progress, 2);
@@ -1387,13 +1400,8 @@ const toolkit = [
         }
 
         // ---- the words --------------------------------------------------
-        // Driven from the frame loop rather than from a scroll listener: the
-        // clock already runs once per frame and has the scroll measured, so
-        // this costs one rect read instead of a listener that forces a reflow
-        // on every scroll event.
-        if (wordSpans.length && wordHost) {
-          const r = wordHost.getBoundingClientRect();
-          const vh = window.innerHeight || 1;
+        if (wordRect) {
+          const r = wordRect;
           // 0 as the block's top reaches three-quarters down the viewport, 1
           // once its bottom has climbed near the top — so the text finishes
           // lighting well before it leaves rather than at the last pixel.

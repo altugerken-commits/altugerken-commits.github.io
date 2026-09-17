@@ -192,7 +192,15 @@
       repeating-linear-gradient(to bottom, var(--sheet-major) 0 1px, transparent 1px var(--sheet-block)),
       repeating-linear-gradient(to right,  var(--sheet-fine)  0 1px, transparent 1px var(--sheet-cell)),
       repeating-linear-gradient(to bottom, var(--sheet-fine)  0 1px, transparent 1px var(--sheet-cell));
-    background-attachment: fixed;
+    /* NOT background-attachment: fixed here. On a touch device that is one of
+       the most reliable ways to make a page stutter: the background can no
+       longer be composited as part of the scrolled layer, so the browser
+       repaints the whole background region on every scroll frame, and iOS
+       Safari handles it especially badly. The grid simply scrolls with the
+       page on touch — barely noticeable, and it costs nothing.
+
+       Kept on a fine pointer, where there is headroom and the registered-to-
+       viewport reading is worth having. */
     color: var(--color-ink-2);
     -webkit-text-size-adjust: 100%;
     /* NO scroll-behavior: smooth. Lenis owns smoothing, and the CSS property
@@ -201,6 +209,10 @@
        animation, so a jump issued while the tab is throttled never arrives.
        Anchor clicks are routed through lenis.scrollTo in the page script,
        which glides on the same curve as the wheel. */
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    html { background-attachment: fixed; }
   }
 
   body {

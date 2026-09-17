@@ -218,8 +218,11 @@ export async function initStudio(api: any) {
   let keyAngle = KEY_PHASE;
 
   const stop = onFrame((t, dt) => {
-    const canvasW = renderer.domElement.clientWidth || 1;
-    const canvasH = renderer.domElement.clientHeight || 1;
+    // From the cached size, NOT from the DOM. clientWidth is a layout read, and
+    // two of them every frame — on top of one getBoundingClientRect per product
+    // — is enough forced reflow to show up as scroll stutter on a phone.
+    const canvasW = api.size?.w || renderer.domElement.clientWidth || 1;
+    const canvasH = api.size?.h || renderer.domElement.clientHeight || 1;
 
     // Detail mode takes the camera and drives the inspected product itself.
     const inDetail = detail.progress > 0.001;

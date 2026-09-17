@@ -47,7 +47,13 @@
         alpha: true,
         powerPreference: 'high-performance',
       });
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      // A phone reports devicePixelRatio 3. Capped at 2 that is still FOUR
+      // times the fragments of 1, on a canvas that fills the viewport, every
+      // frame — and fill rate is the scarcest thing a mobile GPU has. 1.5 costs
+      // almost nothing visually on a display that dense and roughly halves the
+      // work.
+      const coarse = matchMedia('(pointer: coarse)').matches;
+      renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.5 : 2));
       renderer.setClearAlpha(0);
       renderer.toneMapping = THREE.NeutralToneMapping;
       renderer.toneMappingExposure = 1.0;
@@ -114,7 +120,16 @@
       const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 400);
       camera.position.set(0, 0, 12);
 
+      // The canvas size, read ONCE when it actually changes rather than once per
+      // frame. Anything that needs it reads api.size instead of touching the
+      // DOM — clientWidth is a layout read, and a layout read inside the frame
+      // loop forces a synchronous reflow.
+      const size = { w: 1, h: 1 };
+      let dirty = true;
+
       const resize = () => {
+        if (!dirty) return;
+        dirty = false;
         // clientWidth, not innerWidth. innerWidth includes the classic
         // scrollbar gutter, but the canvas lays out at 100% of the content box
         // without it — so the drawing buffer was ~15px wider than the element
@@ -122,12 +137,19 @@
         // scrollbar was present, which on this site is always.
         const w = cv.clientWidth || innerWidth || 1;
         const h = cv.clientHeight || innerHeight || 1;
+        size.w = w;
+        size.h = h;
         renderer.setSize(w, h, false);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
       };
+      const markDirty = () => { dirty = true; };
       resize();
-      addEventListener('resize', resize, { passive: true });
+      // ResizeObserver rather than a per-frame check: it fires when the box
+      // actually changes, including from a rotation or a URL bar collapsing,
+      // which a window resize listener alone misses.
+      new ResizeObserver(markDirty).observe(cv);
+      addEventListener('resize', markDirty, { passive: true });
 
       // Pointer in normalised device coords, damped by whoever consumes it.
       const pointer = new THREE.Vector2(0, 0);
@@ -206,6 +228,7 @@
         camera,
         renderer,
         pointer,
+        size,        // canvas size in CSS px, updated only when it changes
         lights: { sky, key, fill, rim },
         view,        // shared scroll progress, written once per frame
         loadGLB,
