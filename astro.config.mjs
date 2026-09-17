@@ -5,12 +5,22 @@ import tailwindcss from '@tailwindcss/vite';
 
 import react from '@astrojs/react';
 
+import sitemap from '@astrojs/sitemap';
+
 // https://astro.build/config
 export default defineConfig({
   // Base.astro was already hard-coding this as the canonical fallback. Declaring
   // it here makes Astro.site real, so canonical/OG URLs resolve from config
   // instead of a literal, and a sitemap integration has something to build from.
-  site: 'https://altugerken.com',
+  // The live address. This is a GitHub Pages USER site
+  // (repo altugerken-commits.github.io), which serves from the domain root —
+  // so no `base` is needed and every absolute path in the build stays valid.
+  // A project repo would have served from /<repo>/ and required base to match,
+  // which is the usual way a Pages deploy ends up with no CSS.
+  //
+  // altugerken.com is not registered yet. When it is, change this one line and
+  // add the CNAME; canonical, OG and the sitemap all derive from it.
+  site: 'https://altugerken-commits.github.io',
 
   // Honour the PORT assigned by the harness so multiple sessions can run
   // this project side by side without fighting over 4321.
@@ -72,5 +82,6 @@ export default defineConfig({
     },
   },
 
-  integrations: [react()]
+  // sitemap reads `site` above, so it stays correct through a domain change.
+  integrations: [react(), sitemap()]
 });

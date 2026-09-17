@@ -30,3 +30,7 @@ pnpm-debug.log*
 # .claude/settings.local.json — those are ours.
 .agents/
 .claude/skills/
+
+# Local Claude Code permission allowlist. Machine-specific dev config, not
+# source, and it has no business in a public repo.
+.claude/settings.local.json
