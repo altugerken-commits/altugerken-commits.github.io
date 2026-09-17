@@ -41,6 +41,77 @@ const projects = [
   },
 ];
 
+// Image-only projects. These have no GLB, so they are documented with
+// photography and renders rather than staged in the studio scene — a separate
+// shape from `projects` above precisely because pretending they are the same
+// thing would mean carrying a null model through the 3D pipeline.
+//
+// `layout` picks the shot cluster: 'lead' gives the first image the full width
+// with the rest beneath it, 'row' lays them out equally. Portrait photography
+// needs 'row'; a single tall lead image would swallow the section.
+const imageProjects = [
+  {
+    id: 'caki',
+    title: 'Victorinox Camp',
+    side: 'left' as const,
+    layout: 'lead' as const,
+    lead:
+      'A pocket tool for Victorinox built around the implement the standard range leaves out — a proper peeler — carried alongside the rest of the camp set.',
+    spec: [
+      ['Client', 'Victorinox, concept'],
+      ['Added tool', 'Fixed peeler blade'],
+      ['Set', 'Camp essentials'],
+      ['Status', 'Concept, 2025'],
+    ],
+    shots: [
+      { src: 'caki-hero',  w: 1600, h: 900, alt: 'Three-quarter render of the Victorinox camp tool, red scales with polished steel implements.' },
+      { src: 'caki-side',  w: 1200, h: 675, alt: 'Side elevation showing the closed stack thickness.' },
+      { src: 'caki-front', w: 1200, h: 675, alt: 'Front elevation of the tool, peeler blade seated in the body.' },
+      { src: 'caki-top',   w: 1200, h: 675, alt: 'Top view with the peeler swung out of the scales.' },
+    ],
+  },
+  {
+    id: 'kulp',
+    title: 'Poliform Pull',
+    side: 'right' as const,
+    layout: 'lead' as const,
+    lead:
+      'A door pull for Poliform in brushed aluminium, detailed to through-fix to frameless glass wardrobe doors.',
+    spec: [
+      ['Client', 'Poliform, concept'],
+      ['Material', 'Brushed aluminium'],
+      ['Mounting', 'Through-fixed, frameless glass'],
+      ['Status', 'Concept, 2025'],
+    ],
+    shots: [
+      { src: 'kulp-hero',  w: 1600, h: 900, alt: 'The pull rendered against a dark ground, its brushed faces catching a single source.' },
+      { src: 'kulp-room',  w: 1600, h: 900, alt: 'The pull installed on glass wardrobe doors in a lit dressing room.' },
+      { src: 'kulp-close', w: 1200, h: 675, alt: 'Close view of the pull against the glass door and its reflection.' },
+      { src: 'kulp-mount', w: 1200, h: 675, alt: 'The through-fixing detail where the pull clamps the glass.' },
+    ],
+  },
+  {
+    id: 'hipp',
+    title: 'HIPP Travel Pack',
+    side: 'left' as const,
+    layout: 'row' as const,
+    lead:
+      'A travel pack for HIPP baby food with a second life built into the carton: once the jars are out, it unfolds into a bib, and goes to recycling after the meal.',
+    spec: [
+      ['Client', 'HIPP, concept'],
+      ['Format', '2 × 190 g jars'],
+      ['Second use', 'Unfolds into a bib'],
+      ['Material', 'Single-ply carton, die-cut'],
+      ['Status', 'Concept, 2025'],
+    ],
+    shots: [
+      { src: 'hipp-hero', w: 1100, h: 1955, alt: 'The HIPP travel pack standing closed, two jars seated in the carrier.' },
+      { src: 'hipp-open', w: 1100, h: 1955, alt: 'The pack opened at an angle, showing the jars and the fold that becomes the bib.' },
+      { src: 'hipp-back', w: 1100, h: 1956, alt: 'Reverse of the pack carrying the instructions and nutrition panel.' },
+    ],
+  },
+];
+
 const toolkit = [
   ['Fusion 360', 'Parametric CAD'],
   ['Rhino 3D', 'Surface modelling'],
@@ -82,7 +153,7 @@ const toolkit = [
     <div class="lume hero__lume hero__lume--rim" aria-hidden="true"></div>
 
     <div class="shell hero__inner">
-      <h1 class="t-display hero__name rake lit">Altuğ Erken</h1>
+      <h1 class="t-display hero__name rake">Altuğ Erken</h1>
 
       <p class="t-lead hero__lead" data-reveal data-reveal-delay="2">
         Objects built to be understood without instructions.
@@ -152,6 +223,59 @@ const toolkit = [
                   </svg>
                 </span>
               </button>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+
+    {/* Image-only projects. Same type and grid as the staged ones so the page
+        keeps one rhythm, but the 3D anchor is replaced by a shot cluster and
+        there is no "Inspect in 3D" action — there is no model to inspect, and
+        a button that opened an empty viewer would be worse than none. */}
+    {
+      imageProjects.map((p) => (
+        <article
+          class:list={['project', 'project--shots', `project--${p.side}`]}
+          aria-labelledby={`${p.id}-title`}
+        >
+          <div class="shell project__grid">
+            <div class:list={['shots', `shots--${p.layout}`]}>
+              {p.shots.map((shot, i) => (
+                <figure class="shot" data-reveal data-reveal-delay={String(Math.min(i + 1, 5))}>
+                  <picture>
+                    {/* AVIF first, WebP as the fallback every engine takes.
+                        width/height are the real pixel dimensions so the box is
+                        reserved before the bytes land and nothing below shifts. */}
+                    <source srcset={`/media/work/${shot.src}.avif`} type="image/avif" />
+                    <img
+                      src={`/media/work/${shot.src}.webp`}
+                      width={shot.w}
+                      height={shot.h}
+                      alt={shot.alt}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </figure>
+              ))}
+            </div>
+
+            <div class="project__body">
+              <h3 id={`${p.id}-title`} class="t-h1 project__title lit" data-reveal>
+                {p.title}
+              </h3>
+
+              <p class="t-lead" data-reveal data-reveal-delay="1">{p.lead}</p>
+
+              <dl class="spec" data-reveal data-reveal-delay="2">
+                {p.spec.map(([k, v]) => (
+                  <div class="spec__row">
+                    <dt class="t-label">{k}</dt>
+                    <dd class="t-spec">{v}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
         </article>
@@ -465,7 +589,13 @@ const toolkit = [
      one or two lines — a display heading that wraps to four is the single most
      common way a hero stops looking designed. */
   .hero__name {
-    margin: 0;
+    /* The negative bottom margin cancels the padding .rake adds to cover
+       descenders. It has to live HERE rather than next to the padding: this is
+       an Astro scoped rule, so its data-astro-cid selector outranks the layered
+       .rake rule in global.css and a compensation written there is simply
+       overridden to 0 — which is exactly what happened, leaving a 9px gap under
+       the name that nothing asked for. */
+    margin: 0 0 -0.14em;
     width: 100%;
     max-width: 18ch;
   }
@@ -516,7 +646,8 @@ const toolkit = [
   /* Mirrored, so the two case studies do not read as the same page twice.
      Ordering by grid-column rather than by DOM order keeps the heading before
      the decorative box for a screen reader in both directions. */
-  .project--right .product { grid-column: 2; grid-row: 1; }
+  .project--right .product,
+  .project--right .shots { grid-column: 2; grid-row: 1; }
   .project--right .project__body { grid-column: 1; grid-row: 1; }
 
   .project__body { display: grid; justify-items: start; gap: clamp(1rem, 2.4vh, 1.5rem); }
@@ -557,9 +688,60 @@ const toolkit = [
 
   @media (max-width: 900px) {
     .project__grid { grid-template-columns: minmax(0, 1fr); }
+    /* .shots belongs here as much as .product does. Left out of this reset it
+       kept grid-column: 2 in a grid that now has ONE column, so the browser
+       opened an implicit second column and the mirrored sections rendered
+       narrower than the rest of the page. */
     .project--right .product,
+    .project--right .shots,
     .project--right .project__body { grid-column: 1; grid-row: auto; }
     .product { aspect-ratio: 1 / 1; min-height: 17rem; }
+  }
+
+  /* ---- shot cluster ------------------------------------------------------
+     The image equivalent of the 3D anchor. Two columns with the lead image
+     spanning both, or an equal row for portrait photography where a single
+     tall lead would swallow the whole section.
+
+     grid-auto-flow: dense so a short trailing image backfills the gap instead
+     of leaving a hole in the corner. */
+  .shots {
+    display: grid;
+    gap: clamp(0.5rem, 1vw, 0.85rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: dense;
+  }
+  .shots--row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shots--lead > .shot:first-child { grid-column: 1 / -1; }
+
+  /* A recessed plate. On the void a picture needs an edge or it floats as a
+     rectangle of raw colour; the sunken ground plus the rim from --shadow-2
+     reads as the image sitting IN the page rather than on top of it. */
+  .shot {
+    margin: 0;
+    overflow: hidden;
+    border-radius: clamp(0.6rem, 1vw, 1rem);
+    background: var(--color-sunken);
+    box-shadow: var(--shadow-2);
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transition: transform var(--dur-reveal) var(--ease-out);
+  }
+
+  /* Hover only once the entrance has retired its attribute, so the two
+     transforms can never be fighting over the same element. */
+  @media (hover: hover) and (pointer: fine) {
+    .shot:not([data-reveal]):hover img { transform: scale(1.03); }
+  }
+
+  /* Portraits stay legible: at three across on a phone each shot is barely a
+     hundred pixels wide, which is no longer documentation of anything. */
+  @media (max-width: 700px) {
+    .shots,
+    .shots--row { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ---- spec -------------------------------------------------------------- */
@@ -872,6 +1054,14 @@ const toolkit = [
   }
   /* Stagger. Delay is a custom property so the cascade stays declarative and
      the observer does not have to compute per-element timing. */
+  /* Shots arrive scaled slightly over their frame and settle back, so the
+     image grows into its plate instead of sliding into it. Both halves are
+     gated on [data-reveal]: once the observer retires the attribute neither
+     rule matches and the image is left at its natural scale, so retiring can
+     never snap it. */
+  :global(html.js) .shot[data-reveal] img { transform: scale(1.06); }
+  :global(html.js) .shot[data-reveal].is-in img { transform: none; }
+
   :global(html.js) [data-reveal-delay="1"] { transition-delay: 70ms; }
   :global(html.js) [data-reveal-delay="2"] { transition-delay: 140ms; }
   :global(html.js) [data-reveal-delay="3"] { transition-delay: 210ms; }

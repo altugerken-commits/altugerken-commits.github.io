@@ -449,7 +449,22 @@
      engine without support renders the site's largest headline as nothing at
      all. This is the difference between a progressive enhancement and a
      single-point failure on the most important text on the page. */
-  .rake { color: var(--color-ink); }
+  .rake {
+    color: var(--color-ink);
+
+    /* DESCENDER FIX. background-clip:text paints the gradient only inside the
+       element's padding box, and .t-display runs line-height 0.92 — tighter than
+       the glyphs themselves. Measured at the rendered size: the ink is 60px tall
+       in a 60.5px line box, and the baseline sits low enough that the tail of
+       "ğ" in "Altuğ" ends up roughly a pixel BELOW the painting area. That last
+       sliver gets no gradient, and because .rake sets color:transparent it is
+       not drawn at all — which reads as the descender fading out.
+
+       Padding extends the painting area; the matching negative margin keeps the
+       layout identical, so this costs nothing but the fix. */
+    padding-bottom: 0.14em;
+    margin-bottom: -0.14em;
+  }
 
   @supports ((background-clip: text) or (-webkit-background-clip: text)) {
     .rake {
