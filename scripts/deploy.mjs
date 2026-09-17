@@ -28,7 +28,12 @@ const email = capture('git', ['config', 'user.email']);
 
 console.log(`\nbuilding ${sha} ...`);
 rmSync('dist', { recursive: true, force: true });
-run('npm', ['run', 'build'], { shell: process.platform === 'win32' });
+// Astro is invoked directly with this Node binary, not through npm. That
+// sidesteps two Windows problems at once: since the CVE-2024-27980 fix Node
+// refuses to spawn a .cmd without shell: true (EINVAL), and passing an argument
+// array WITH a shell concatenates rather than escapes it (DEP0190), which also
+// breaks on any path containing a space. Spawning node on a .mjs needs neither.
+run(process.execPath, ['node_modules/astro/bin/astro.mjs', 'build']);
 
 // WITHOUT THIS THE SITE SHIPS WITH NO STYLES. Pages runs Jekyll by default, and
 // Jekyll excludes every path beginning with an underscore — which is exactly
