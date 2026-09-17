@@ -13,14 +13,14 @@ export default defineConfig({
   // it here makes Astro.site real, so canonical/OG URLs resolve from config
   // instead of a literal, and a sitemap integration has something to build from.
   // The live address. This is a GitHub Pages USER site
-  // (repo altugerken-commits.github.io), which serves from the domain root —
+  // (repo altugerken.github.io), which serves from the domain root —
   // so no `base` is needed and every absolute path in the build stays valid.
   // A project repo would have served from /<repo>/ and required base to match,
   // which is the usual way a Pages deploy ends up with no CSS.
   //
   // altugerken.com is not registered yet. When it is, change this one line and
   // add the CNAME; canonical, OG and the sitemap all derive from it.
-  site: 'https://altugerken-commits.github.io',
+  site: 'https://altugerken.github.io',
 
   // Honour the PORT assigned by the harness so multiple sessions can run
   // this project side by side without fighting over 4321.

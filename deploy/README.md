@@ -1,6 +1,6 @@
 # Deployment
 
-The site is live at <https://altugerken-commits.github.io/>, served by GitHub
+The site is live at <https://altugerken.github.io/>, served by GitHub
 Pages from the `gh-pages` branch.
 
 ## Right now: manual
