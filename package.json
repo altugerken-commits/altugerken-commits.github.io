@@ -15,7 +15,8 @@
     "media:render": "npm run media:webm && npm run media:mp4 && npm run media:poster",
     "media:webm": "remotion render remotion/index.ts DraftingStrip public/media/drafting-strip.webm --codec=vp9",
     "media:mp4": "remotion render remotion/index.ts DraftingStrip public/media/drafting-strip.mp4 --codec=h264",
-    "media:poster": "remotion still remotion/index.ts DraftingStrip public/media/drafting-strip.png --frame=60"
+    "media:poster": "remotion still remotion/index.ts DraftingStrip public/media/drafting-strip.png --frame=60",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.2",
